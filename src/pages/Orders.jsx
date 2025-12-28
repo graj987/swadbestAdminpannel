@@ -1,6 +1,8 @@
 // src/pages/Orders.jsx
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import api from "../api";
+import { X, Search, PackageCheck, Truck, CheckCircle, Trash2 } from "lucide-react";
+
 
 
 const getAuthHeader = () => {
@@ -11,354 +13,245 @@ const getAuthHeader = () => {
 export default function Orders() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  const [query, setQuery] = useState("");
-  const [page, setPage] = useState(1);
-  const [limit] = useState(10);
-  const [totalPages, setTotalPages] = useState(null);
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [query, setQuery] = useState("");
 
-  const abortRef = useRef(null);
-  const mountedRef = useRef(true);
+  // =========================
+  // LOAD ALL ORDERS
+  // =========================
+  const fetchOrders = async () => {
+    try {
+      setLoading(true);
+      const res = await api.get("/api/admin/orders", {
+        headers: getAuthHeader(),
+      });
+      setOrders(res.data);
+    } catch (err) {
+      console.error("Orders load error:", err);
+      alert("Failed to load orders");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    mountedRef.current = true;
-    return () => {
-      mountedRef.current = false;
-      if (abortRef.current) {
-        try {
-          abortRef.current.abort();
-        } catch  {
-  // ignore: abort may throw; nothing to do here
-}
-      }
-    };
+    fetchOrders();
   }, []);
 
-  const normalizeOrders = useCallback((raw) => {
-    if (!raw) return [];
-    if (Array.isArray(raw)) return raw;
-    if (Array.isArray(raw.data)) return raw.data;
-    if (Array.isArray(raw.orders)) return raw.orders;
-    if (Array.isArray(raw.results)) return raw.results;
-    if (Array.isArray(raw.payload?.items)) return raw.payload.items;
-    if (typeof raw === "object" && !Array.isArray(raw)) {
-      const arr = Object.values(raw).find((v) => Array.isArray(v));
-      if (arr) return arr;
+  // =========================
+  // UPDATE STATUS
+  // =========================
+  const updateStatus = async (id, status) => {
+    if (!confirm(`Change status to: ${status}?`)) return;
+
+    try {
+      await api.put(
+        `/api/admin/orders/${id}/status`,
+        { status },
+        { headers: getAuthHeader() }
+      );
+
+      // Reflect instantly
+      setOrders((prev) =>
+        prev.map((o) =>
+          o._id === id ? { ...o, orderStatus: status } : o
+        )
+      );
+
+      if (selectedOrder?._id === id) {
+        setSelectedOrder((prev) => ({ ...prev, orderStatus: status }));
+      }
+    } catch (err) {
+      console.error("Status update failed:", err);
+      alert("Failed to update status");
     }
-    return [];
-  }, []);
+  };
 
-  const extractTotalPages = useCallback((raw, _limit) => {
-    if (!raw) return null;
-    const total =
-      raw.total ??
-      raw.count ??
-      raw.totalDocs ??
-      raw.totalItems ??
-      raw.meta?.total ??
-      raw.pagination?.total;
-    if (typeof total === "number" && _limit) {
-      return Math.max(1, Math.ceil(total / _limit));
-    }
-    if (raw.totalPages || raw.pages) return raw.totalPages ?? raw.pages;
-    return null;
-  }, []);
+  // =========================
+  // FILTER
+  // =========================
+  const filteredOrders = orders.filter((o) => {
+    if (!query.trim()) return true;
+    const q = query.toLowerCase();
+    return (
+      o._id?.toLowerCase().includes(q) ||
+      o.user?.name?.toLowerCase().includes(q) ||
+      o.user?.email?.toLowerCase().includes(q)
+    );
+  });
 
-  // single, stable loadOrders declaration (no duplicates)
-  const loadOrders = useCallback(
-    async (opts = { usePage: true, endpoint: "/api/admin/orders" }) => {
-      // reset visible errors for this request
-      setError(null);
-      setLoading(true);
-
-      // cancel previous
-      if (abortRef.current) {
-        try {
-          abortRef.current.abort();
-        } catch  {
-  // ignore: abort may throw; nothing to do here
-} 
-      }
-      abortRef.current = new AbortController();
-      const signal = abortRef.current.signal;
-
-      try {
-        const params = opts.usePage ? `?page=${page}&limit=${limit}` : "";
-        const res = await api.get(`${opts.endpoint}${params}`, {
-          headers: getAuthHeader(),
-          signal,
-        });
-
-        const arr = normalizeOrders(res.data);
-        const tPages = extractTotalPages(res.data, limit);
-
-        if (!mountedRef.current) return;
-        setOrders(arr);
-        setTotalPages(tPages);
-      } catch (err) {
-        if (api.isCancel?.(err) || err?.name === "CanceledError") {
-          // aborted - ignore
-          return;
-        }
-        console.error("loadOrders error:", err);
-        if (!mountedRef.current) return;
-        setError("Failed to fetch orders. Check auth and backend.");
-        setOrders([]);
-      } finally {
-        if (mountedRef.current) setLoading(false);
-      }
-    },
-    [page, limit, normalizeOrders, extractTotalPages]
-  );
-
-  // initial load + page changes
-  useEffect(() => {
-    loadOrders();
-  }, [loadOrders]);
-
-  const searchHandler = useCallback(
-    async (e) => {
-      e?.preventDefault();
-      if (!query?.trim()) {
-        setPage(1);
-        loadOrders();
-        return;
-      }
-
-      // abort previous
-      if (abortRef.current) {
-        try {
-          abortRef.current.abort();
-        } catch  {
-  // ignore: abort may throw; nothing to do here
-}
-      }
-      abortRef.current = new AbortController();
-      const signal = abortRef.current.signal;
-
-      setLoading(true);
-      setError(null);
-
-      try {
-        const endpoint = `/api/orders/search?q=${encodeURIComponent(query)}`;
-        const res = await api.get(endpoint, { headers: getAuthHeader(), signal });
-        const arr = normalizeOrders(res.data);
-        const tPages = extractTotalPages(res.data, limit);
-
-        if (!mountedRef.current) return;
-        setOrders(arr);
-        setTotalPages(tPages);
-      } catch (err) {
-        if (api.isCancel?.(err) || err?.name === "CanceledError") return;
-        console.error("search error:", err);
-        if (!mountedRef.current) return;
-        setError("Search failed");
-        setOrders([]);
-      } finally {
-        if (mountedRef.current) setLoading(false);
-      }
-    },
-    [query, limit, normalizeOrders, extractTotalPages, loadOrders]
-  );
-
-  const updateStatus = useCallback(
-    async (id, status) => {
-      if (!window.confirm(`Change order status to "${status}"?`)) return;
-
-      const matchFn = (o) =>
-        o._id === id || o.id === id || String(o._id) === String(id) || String(o.id) === String(id);
-
-      // optimistic update
-      setOrders((prev) => prev.map((o) => (matchFn(o) ? { ...o, orderStatus: status } : o)));
-      if (selectedOrder && matchFn(selectedOrder)) setSelectedOrder((s) => ({ ...s, orderStatus: status }));
-
-      try {
-        await api.put(`/api/amdin/orders/${id}/status`, { status }, { headers: getAuthHeader() });
-      } catch (err) {
-        console.error("updateStatus error:", err);
-        // revert (best-effort)
-        setOrders((prev) => prev.map((o) => (matchFn(o) ? { ...o, orderStatus: o.orderStatus ?? o.status ?? "pending" } : o)));
-        if (selectedOrder && matchFn(selectedOrder)) setSelectedOrder((s) => ({ ...s, orderStatus: s.orderStatus ?? s.status ?? "pending" }));
-        alert("Failed to update status");
-      }
-    },
-    [selectedOrder]
-  );
-
-  const viewDetails = useCallback((order) => {
-    const products =
-      order.products ?? order.items ?? order.orderItems ?? order.data ?? order.productsArray ?? [];
-    setSelectedOrder({ ...order, products: Array.isArray(products) ? products : [] });
-  }, []);
-
-  const closeDetails = useCallback(() => setSelectedOrder(null), []);
-
-  const idOf = (o) => o._id ?? o.id ?? Math.random();
-  const getStatus = (o) => o.orderStatus ?? o.status ?? "pending";
-  const getUserName = (o) => o.user?.name ?? o.user?.email ?? o.userId ?? "-";
-  const getAmount = (o) => o.totalAmount ?? o.amount ?? 0;
-
+  // =========================
+  // UI
+  // =========================
   return (
     <div className="p-6">
+      {/* HEADER */}
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Orders</h1>
+        <h1 className="text-3xl font-bold">Orders</h1>
 
-        <form onSubmit={searchHandler} className="flex items-center">
+        <div className="flex items-center gap-2 bg-white shadow px-3 py-2 rounded-lg border">
+          <Search className="text-gray-500" size={18} />
           <input
+            className="outline-none"
+            placeholder="Search orders..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search by id, user, phone, or product"
-            className="border px-3 py-2 rounded-l w-64"
           />
-          <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-r">
-            Search
-          </button>
-        </form>
+        </div>
       </div>
 
-      {loading ? (
-        <div className="space-y-3">
-          <div className="h-8 w-1/3 bg-gray-200 rounded animate-pulse" />
-          <div className="h-40 bg-gray-200 rounded animate-pulse" />
-        </div>
-      ) : error ? (
-        <p className="text-center text-red-600 p-4">{error}</p>
-      ) : (
-        <>
-          <div className="grid grid-cols-1 gap-4">
-            {(!orders || orders.length === 0) && <p className="text-center text-gray-600">No orders found.</p>}
-
-            {orders.map((order) => {
-              const id = idOf(order);
-              const status = getStatus(order);
-              const userName = getUserName(order);
-              const amount = getAmount(order);
-              return (
-                <div
-                  key={id}
-                  className="bg-white p-4 rounded shadow flex flex-col md:flex-row md:items-center md:justify-between"
-                >
-                  <div>
-                    <p className="font-semibold">
-                      Order: <span className="font-normal">{id}</span>
-                    </p>
-                    <p className="text-sm">User: {userName}</p>
-                    <p className="text-sm">Amount: ₹{amount}</p>
-                    <p className="text-sm">
-                      Status: <span className="font-medium">{status}</span>
-                    </p>
-                  </div>
-
-                  <div className="flex items-center gap-2 mt-3 md:mt-0">
-                    <button onClick={() => viewDetails(order)} className="px-3 py-1 border rounded">
-                      Details
-                    </button>
-
-                    <div className="flex gap-2">
-                      <button onClick={() => updateStatus(id, "processing")} className="px-3 py-1 border rounded">
-                        Processing
-                      </button>
-                      <button onClick={() => updateStatus(id, "shipped")} className="px-3 py-1 border rounded">
-                        Shipped
-                      </button>
-                      <button onClick={() => updateStatus(id, "delivered")} className="px-3 py-1 border rounded">
-                        Delivered
-                      </button>
-                    </div>
-
-                    <button onClick={() => updateStatus(id, "cancelled")} className="px-3 py-1 bg-red-500 text-white rounded">
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="flex items-center justify-center gap-3 mt-6">
-            <button
-              disabled={page <= 1}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              className="px-3 py-1 border rounded disabled:opacity-50"
-            >
-              Prev
-            </button>
-
-            <span>
-              Page {page}
-              {totalPages ? ` / ${totalPages}` : ""}
-            </span>
-
-            <button onClick={() => setPage((p) => p + 1)} className="px-3 py-1 border rounded">
-              Next
-            </button>
-          </div>
-        </>
+      {/* LOADING */}
+      {loading && (
+        <div className="text-center py-10 text-gray-600">Loading orders...</div>
       )}
 
-      {selectedOrder && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg w-11/12 md:w-2/3 max-h-[80vh] overflow-auto p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold">Order Details</h2>
-              <button onClick={closeDetails} className="px-3 py-1 border rounded">
-                Close
-              </button>
+      {/* EMPTY */}
+      {!loading && filteredOrders.length === 0 && (
+        <div className="text-center text-gray-500 py-10">No orders found.</div>
+      )}
+
+      {/* ORDER LIST */}
+      <div className="grid gap-4">
+        {filteredOrders.map((order) => (
+          <div
+            key={order._id}
+            className="bg-white border rounded-xl shadow p-4 flex items-center justify-between hover:shadow-md transition"
+          >
+            <div>
+              <p className="text-sm text-gray-500">Order ID</p>
+              <p className="font-semibold">{order._id}</p>
+
+              <p className="mt-2 text-sm">
+                <strong>User:</strong>{" "}
+                {order.user?.name || order.user?.email || "-"}
+              </p>
+
+              <p className="text-sm">
+                <strong>Total:</strong> ₹{order.totalAmount}
+              </p>
+
+              <p className="text-sm">
+                <strong>Status:</strong>{" "}
+                <span className="font-semibold text-blue-600">
+                  {order.orderStatus}
+                </span>
+              </p>
             </div>
 
-            <p>
-              <strong>Order ID:</strong> {selectedOrder._id ?? selectedOrder.id}
-            </p>
-            <p>
-              <strong>Status:</strong> {selectedOrder.orderStatus ?? selectedOrder.status}
-            </p>
-            <p>
-              <strong>Total:</strong> ₹{selectedOrder.totalAmount ?? selectedOrder.amount}
-            </p>
-            <p>
-              <strong>User:</strong> {selectedOrder.user?.name ?? selectedOrder.userId ?? "-"}
-            </p>
-            <p>
-              <strong>Phone:</strong> {selectedOrder.shippingInfo?.phoneNo ?? selectedOrder.phone ?? "-"}
-            </p>
-            <p>
-              <strong>Address:</strong>{" "}
-              {selectedOrder.shippingInfo
-                ? `${selectedOrder.shippingInfo.address ?? ""}, ${selectedOrder.shippingInfo.city ?? ""}, ${selectedOrder.shippingInfo.postalCode ?? ""}`
-                : "-"}
-            </p>
+            {/* ACTION BUTTONS */}
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => setSelectedOrder(order)}
+                className="px-4 py-1 text-sm border rounded-lg hover:bg-gray-100"
+              >
+                View Details
+              </button>
 
-            <h3 className="mt-4 font-semibold">Products</h3>
-            <div className="grid gap-3 mt-2">
-              {(selectedOrder.products ?? []).length === 0 && <p className="text-sm text-gray-600">No products data available.</p>}
-              {(selectedOrder.products ?? []).map((p, idx) => {
-                const pid = p.productId ?? p._id ?? idx;
-                const img = p.image ?? p.product?.image ?? "/placeholder-100x100.png";
-                const name = p.name ?? p.product?.name ?? "Unnamed product";
-                const qty = p.quantity ?? p.qty ?? 1;
-                const price = p.price ?? p.product?.price ?? 0;
-                return (
-                  <div key={pid} className="flex items-center gap-3 border rounded p-3">
-                    <img src={img} alt={name} className="w-16 h-16 object-cover rounded" onError={(e) => (e.currentTarget.src = "/placeholder-100x100.png")} />
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => updateStatus(order._id, "processing")}
+                  className="px-3 py-1 text-xs bg-yellow-100 text-yellow-700 rounded-lg"
+                >
+                  Processing
+                </button>
+                <button
+                  onClick={() => updateStatus(order._id, "shipped")}
+                  className="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded-lg"
+                >
+                  Shipped
+                </button>
+                <button
+                  onClick={() => updateStatus(order._id, "delivered")}
+                  className="px-3 py-1 text-xs bg-green-100 text-green-700 rounded-lg"
+                >
+                  Delivered
+                </button>
+                <button
+                  onClick={() => updateStatus(order._id, "cancelled")}
+                  className="px-3 py-1 text-xs bg-red-100 text-red-700 rounded-lg"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* =========================
+           ORDER DETAILS MODAL
+      ========================= */}
+      {selectedOrder && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl p-6 relative">
+            {/* Close */}
+            <button
+              onClick={() => setSelectedOrder(null)}
+              className="absolute top-3 right-3 text-gray-600 hover:text-black"
+            >
+              <X size={22} />
+            </button>
+
+            <h2 className="text-xl font-bold mb-4">Order Details</h2>
+
+            <div className="space-y-2 text-sm">
+              <p>
+                <strong>Order ID:</strong> {selectedOrder._id}
+              </p>
+              <p>
+                <strong>Status:</strong> {selectedOrder.orderStatus}
+              </p>
+              <p>
+                <strong>Total:</strong> ₹{selectedOrder.totalAmount}
+              </p>
+              <p>
+                <strong>User:</strong> {selectedOrder.user?.name}
+              </p>
+
+              <p>
+                <strong>Address:</strong>{" "}
+                {selectedOrder.shippingInfo
+                  ? `${selectedOrder.shippingInfo.address}, ${selectedOrder.shippingInfo.city}`
+                  : "-"}
+              </p>
+
+              <h3 className="font-semibold mt-4">Products</h3>
+              <div className="grid gap-3">
+                {selectedOrder.products?.map((p, i) => (
+                  <div key={i} className="flex items-center gap-3 border p-2 rounded-lg">
+                    <img
+                      src={p.image}
+                      className="w-14 h-14 object-cover rounded"
+                    />
                     <div>
-                      <div className="font-medium">{name}</div>
-                      <div className="text-sm">Qty: {qty}</div>
-                      <div className="text-sm">Price: ₹{price}</div>
+                      <p className="font-medium">{p.name}</p>
+                      <p className="text-sm">Qty: {p.quantity}</p>
+                      <p className="text-sm">Price: ₹{p.price}</p>
                     </div>
                   </div>
-                );
-              })}
-            </div>
+                ))}
+              </div>
 
-            <div className="mt-6 flex justify-end gap-2">
-              <button onClick={() => updateStatus(selectedOrder._id ?? selectedOrder.id, "shipped")} className="px-4 py-2 border rounded">
-                Mark Shipped
-              </button>
-              <button onClick={() => updateStatus(selectedOrder._id ?? selectedOrder.id, "delivered")} className="px-4 py-2 bg-green-600 text-white rounded">
-                Mark Delivered
-              </button>
+              {/* QUICK STATUS UPDATE */}
+              <div className="mt-6 flex gap-3 justify-end">
+                <button
+                  onClick={() =>
+                    updateStatus(selectedOrder._id, "shipped")
+                  }
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg"
+                >
+                  Mark Shipped
+                </button>
+
+                <button
+                  onClick={() =>
+                    updateStatus(selectedOrder._id, "delivered")
+                  }
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg"
+                >
+                  Mark Delivered
+                </button>
+              </div>
             </div>
           </div>
         </div>

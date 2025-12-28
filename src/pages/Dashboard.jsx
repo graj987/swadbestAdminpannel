@@ -1,4 +1,3 @@
-// src/pages/AdminDashboard.jsx
 import React, { useEffect, useState } from "react";
 import api from "../api";
 import {
@@ -13,211 +12,214 @@ import {
 
 function getAuthHeader() {
   const token = localStorage.getItem("adminToken");
-  if (!token) return {};
-  return { Authorization: `Bearer ${token}` };
+  return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
 const formatCurrency = (v) =>
-  typeof v === "number" ? v.toLocaleString("en-IN", { maximumFractionDigits: 2 }) : v;
+  typeof v === "number"
+    ? v.toLocaleString("en-IN", { maximumFractionDigits: 2 })
+    : v;
 
 export default function AdminDashboard() {
-  const [stats, setStats] = useState({ users: 0, products: 0, orders: 0, revenue: 0 });
-  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    usersCount: 0,
+    productsCount: 0,
+    ordersCount: 0,
+    revenue: 0,
+  });
+
   const [recentOrders, setRecentOrders] = useState([]);
   const [recentProducts, setRecentProducts] = useState([]);
   const [chartData, setChartData] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    let isActive = true; // genuine, React-18-safe pattern
+    let mounted = true;
 
     const load = async () => {
-      if (!isActive) return;
-      setLoading(true);
-
       try {
-        // Try consolidated stats endpoint first
-        try {
-          const res = await api.get("/api/admin/stats", {
-            headers: getAuthHeader(),
-          });
-          const d = res?.data ?? {};
-
-          if (!isActive) return;
-
-          setStats({
-            users: Number(d.users ?? 0),
-            products: Number(d.products ?? 0),
-            orders: Number(d.orders ?? 0),
-            revenue: Number(d.revenue ?? 0),
-          });
-
-          const chart = Array.isArray(d.revenueChart) ? d.revenueChart : [];
-          setChartData(
-            chart.map((c) => ({
-              date: String(c.date ?? c.label ?? ""),
-              revenue: Number(c.revenue ?? c.value ?? 0),
-            }))
-          );
-        } catch (e) {
-          e
-          if (!isActive) return;
-
-          const [uR, pR, oR] = await Promise.all([
-            api.get("/api/admin/users/count", { headers: getAuthHeader() }).catch(() => ({ data: { count: 0 } })),
-            api.get("/api/admin/products/count", { headers: getAuthHeader() }).catch(() => ({ data: { count: 0 } })),
-            api.get("/api/admin/orders/count", { headers: getAuthHeader() }).catch(() => ({ data: { count: 0 } })),
-          ]);
-
-          if (!isActive) return;
-
-          setStats({
-            users: Number(uR.data?.count ?? 0),
-            products: Number(pR.data?.count ?? 0),
-            orders: Number(oR.data?.count ?? 0),
-            revenue: 0,
-          });
-          setChartData([]);
-        }
-
-        // Recent items (orders + products)
-        if (!isActive) return;
-
-        const [ro, rp] = await Promise.all([
-          api.get("/api/admin/orders?limit=5", { headers: getAuthHeader() }).catch(() => ({ data: [] })),
-          api.get("/api/products?limit=5", { headers: getAuthHeader() }).catch(() => ({ data: [] })),
+        const [statsRes, ordersRes, productsRes] = await Promise.all([
+          api.get("/api/admin/stats", { headers: getAuthHeader() }),
+          api.get("/api/admin/orders?limit=5", { headers: getAuthHeader() }),
+          api.get("/api/admin/products?limit=5", { headers: getAuthHeader() }),
         ]);
 
-        if (!isActive) return;
+        if (!mounted) return;
 
-        const ordersRaw = ro.data?.data ?? ro.data ?? [];
-        const productsRaw = rp.data?.data ?? rp.data ?? [];
+        setStats({
+          usersCount: statsRes.data?.usersCount ?? 0,
+          productsCount: statsRes.data?.productsCount ?? 0,
+          ordersCount: statsRes.data?.ordersCount ?? 0,
+          revenue: statsRes.data?.revenue ?? 0,
+        });
 
-        setRecentOrders(Array.isArray(ordersRaw) ? ordersRaw : []);
-        setRecentProducts(Array.isArray(productsRaw) ? productsRaw : []);
-      } catch (err) {
-        // ignore client-side cancellations, surface others
-        const canceled = err?.code === "ERR_CANCELED" || err?.name === "CanceledError";
-        if (!canceled && isActive) {
-          console.error("Dashboard load error:", err);
-        }
-      } finally {
-        if (isActive) setLoading(false);
+        setChartData(
+          Array.isArray(statsRes.data?.revenueChart)
+            ? statsRes.data.revenueChart.map((d) => ({
+                date: d.date,
+                revenue: Number(d.revenue),
+              }))
+            : []
+        );
+
+        setRecentOrders(Array.isArray(ordersRes.data) ? ordersRes.data : []);
+        setRecentProducts(Array.isArray(productsRes.data) ? productsRes.data : []);
+      } catch (err) {err}
+      finally {
+        if (mounted) setLoading(false);
       }
     };
 
     load();
-
-    return () => {
-      // mark inactive so we don't set state after unmount
-      isActive = false;
-    };
+    return () => (mounted = false);
   }, []);
 
+  /* ------------------ LOADING SKELETON ------------------ */
   if (loading)
     return (
       <div className="p-6">
-        <h1 className="text-2xl font-bold mb-4">Admin Dashboard</h1>
-        <div className="space-y-3">
-          <div className="h-6 w-1/3 bg-gray-200 rounded animate-pulse"></div>
-          <div className="h-6 w-1/4 bg-gray-200 rounded animate-pulse"></div>
-          <div className="h-40 bg-gray-200 rounded animate-pulse"></div>
+        <h1 className="text-3xl font-bold mb-8">Dashboard</h1>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="h-24 bg-white rounded-xl shadow animate-pulse" />
+          ))}
         </div>
+
+        <div className="bg-white rounded-xl shadow h-64 mt-6 animate-pulse" />
       </div>
     );
 
+  /* ------------------ MAIN UI ------------------ */
   return (
     <div className="p-6">
-      <h1 className="text-2xl font-bold mb-6">Admin Dashboard</h1>
+      <h1 className="text-3xl font-bold mb-8">Dashboard</h1>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <StatCard label="Users" value={stats.users} />
-        <StatCard label="Products" value={stats.products} />
-        <StatCard label="Orders" value={stats.orders} />
-        <StatCard label="Revenue" value={`₹${formatCurrency(stats.revenue)}`} />
+      {/* STATS */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-10">
+        <StatCard label="Users" value={stats.usersCount} color="blue" />
+        <StatCard label="Products" value={stats.productsCount} color="green" />
+        <StatCard label="Orders" value={stats.ordersCount} color="indigo" />
+        <StatCard
+          label="Revenue"
+          value={`₹${formatCurrency(stats.revenue)}`}
+          color="orange"
+        />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="col-span-2 bg-white p-4 rounded-lg shadow">
-          <h2 className="font-semibold mb-2">Revenue (last 7 days)</h2>
+      {/* CHART + RECENT ITEMS */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        
+        {/* CHART */}
+        <div className="col-span-2 bg-white rounded-xl shadow border p-6">
+          <h2 className="text-lg font-semibold mb-4">Revenue (Last 7 Days)</h2>
+
           {chartData.length === 0 ? (
-            <div className="text-sm text-gray-500">No chart data available.</div>
+            <p className="text-gray-500 text-sm">No revenue data available.</p>
           ) : (
-            <div style={{ width: "100%", height: 220 }}>
+            <div className="w-full h-72">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chartData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                <AreaChart data={chartData}>
                   <defs>
-                    <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#8884d8" stopOpacity={0.6} />
-                      <stop offset="95%" stopColor="#8884d8" stopOpacity={0.05} />
+                    <linearGradient id="rev" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.4} />
+                      <stop offset="95%" stopColor="#4f46e5" stopOpacity={0.05} />
                     </linearGradient>
                   </defs>
+
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-                  <YAxis />
-                  <Tooltip formatter={(value) => `₹${formatCurrency(value)}`} />
-                  <Area type="monotone" dataKey="revenue" stroke="#8884d8" fill="url(#colorRev)" fillOpacity={1} isAnimationActive={false} />
+                  <YAxis tickFormatter={(v) => `₹${v}`} />
+                  <Tooltip formatter={(v) => `₹${formatCurrency(v)}`} />
+
+                  <Area
+                    type="monotone"
+                    dataKey="revenue"
+                    stroke="#4f46e5"
+                    fill="url(#rev)"
+                  />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
           )}
         </div>
 
-        <div className="bg-white p-4 rounded-lg shadow">
-          <h2 className="font-semibold mb-2">Recent Orders</h2>
-          {recentOrders.length === 0 ? (
-            <div className="text-sm text-gray-500">No recent orders.</div>
-          ) : (
-            <div className="space-y-3">
-              {recentOrders.map((o) => (
-                <div key={o._id ?? o.id ?? Math.random()} className="border rounded p-3">
-                  <div className="flex items-center justify-between">
+        {/* RECENT ITEMS */}
+        <div className="space-y-8">
+
+          {/* RECENT ORDERS */}
+          <div className="bg-white rounded-xl shadow border p-6">
+            <h2 className="text-lg font-semibold mb-4">Recent Orders</h2>
+
+            {recentOrders.length === 0 ? (
+              <p className="text-sm text-gray-500">No recent orders.</p>
+            ) : (
+              <div className="space-y-4">
+                {recentOrders.map((o) => (
+                  <div key={o._id} className="p-3 bg-gray-50 rounded-lg flex justify-between items-center">
                     <div>
-                      <div className="font-medium">{o.user?.name ?? (typeof o.userId === "string" ? o.userId : "—")}</div>
-                      <div className="text-sm text-gray-600">Order: {o._id ?? o.id ?? "—"}</div>
+                      <p className="font-medium">{o.user?.name ?? "User"}</p>
+                      <p className="text-xs text-gray-500">{o._id}</p>
                     </div>
                     <div className="text-right">
-                      <div className="font-semibold">₹{formatCurrency(Number(o.totalAmount ?? 0))}</div>
-                      <div className="text-sm text-gray-600">{o.orderStatus ?? "—"}</div>
+                      <p className="text-green-600 font-semibold">
+                        ₹{formatCurrency(o.totalAmount)}
+                      </p>
+                      <p className="text-xs text-gray-500">{o.orderStatus}</p>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
+                ))}
+              </div>
+            )}
+          </div>
 
-          <h3 className="mt-4 font-semibold">Recent Products</h3>
-          {recentProducts.length === 0 ? (
-            <div className="text-sm text-gray-500">No recent products.</div>
-          ) : (
-            <div className="space-y-2 mt-2">
-              {recentProducts.map((p) => (
-                <div key={p._id ?? p.id ?? Math.random()} className="flex items-center gap-3">
-                  <img
-                    src={p.image ?? p.images?.[0] ?? "/placeholder-100x100.png"}
-                    alt={p.name ?? "product"}
-                    onError={(e) => (e.currentTarget.src = "/placeholder-100x100.png")}
-                    className="w-12 h-12 object-cover rounded bg-gray-100"
-                  />
-                  <div>
-                    <div className="font-medium">{p.name ?? "Unnamed product"}</div>
-                    <div className="text-sm text-gray-600">₹{formatCurrency(Number(p.price ?? 0))}</div>
+          {/* RECENT PRODUCTS */}
+          <div className="bg-white rounded-xl shadow border p-6">
+            <h2 className="text-lg font-semibold mb-4">Recent Products</h2>
+
+            {recentProducts.length === 0 ? (
+              <p className="text-sm text-gray-500">No recent products.</p>
+            ) : (
+              <div className="space-y-4">
+                {recentProducts.map((p) => (
+                  <div key={p._id} className="flex items-center gap-3">
+                    <img
+                      src={p.image}
+                      className="w-12 h-12 rounded-lg border object-cover"
+                      alt=""
+                    />
+                    <div>
+                      <p className="font-medium">{p.name}</p>
+                      <p className="text-sm text-gray-600">
+                        ₹{formatCurrency(p.price)}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
+                ))}
+              </div>
+            )}
+          </div>
+
         </div>
+
       </div>
     </div>
   );
 }
 
-/* Small reusable stat card */
-function StatCard({ label, value }) {
+/* ------------------ STAT CARD ------------------ */
+function StatCard({ label, value, color }) {
+  const map = {
+    blue: "text-blue-600 bg-blue-50",
+    green: "text-green-600 bg-green-50",
+    orange: "text-orange-600 bg-orange-50",
+    indigo: "text-indigo-600 bg-indigo-50",
+  };
+
   return (
-    <div className="bg-white p-4 rounded-lg shadow">
-      <div className="text-sm text-gray-500">{label}</div>
-      <div className="text-2xl font-semibold">{value}</div>
+    <div className="p-6 bg-white rounded-xl shadow border">
+      <p className="text-sm text-gray-500">{label}</p>
+      <p className={`mt-2 text-3xl font-bold ${map[color]}`}>{value}</p>
     </div>
   );
 }

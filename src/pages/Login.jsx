@@ -75,13 +75,11 @@ export default function Login() {
       localStorage.setItem("adminToken", token);
       localStorage.setItem("adminUser", JSON.stringify(user || {}));
 
-      // update context (always call so provider syncs)
       login(user || null, token);
 
       navigate("/admin/dashboard");
     } catch (err) {
       console.error("Login failed:", err);
-      // handle different error shapes cleanly
       const serverMessage = err?.response?.data?.message ?? err?.response?.data ?? null;
       const msg = serverMessage || err?.message || "Login failed";
       setError(typeof msg === "string" ? msg : JSON.stringify(msg));

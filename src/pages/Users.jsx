@@ -1,88 +1,120 @@
 // src/pages/Users.jsx
-import React, { useState, useEffect, useCallback } from "react";
-import api from "../api"; // optional: axios instance; we still add headers here
+import React, { useState, useEffect } from "react";
+import api from "../api";
 import { useNavigate } from "react-router-dom";
 
 export default function Users() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState("");
   const navigate = useNavigate();
 
-  const getAuthHeader = () => {
+  const authHeader = () => {
     const token = localStorage.getItem("adminToken");
     return token ? { Authorization: `Bearer ${token}` } : {};
   };
 
-  const normalizeUsers = useCallback((raw) => {
-    if (!raw) return [];
-    if (Array.isArray(raw)) return raw;
-    if (Array.isArray(raw.data)) return raw.data;
-    if (Array.isArray(raw.users)) return raw.users;
-    if (Array.isArray(raw.results)) return raw.results;
-    if (typeof raw === "object") {
-      const arr = Object.values(raw).find((v) => Array.isArray(v));
-      if (arr) return arr;
-    }
-    return [];
-  }, []);
-
+  // ============= FETCH USERS =============
   useEffect(() => {
-    let mounted = true;
-    const fetchUsers = async () => {
+    let active = true;
+
+    const loadUsers = async () => {
       try {
-        setError(null);
-        setLoading(true);
-        // attach auth header explicitly
         const res = await api.get("/api/admin/users", {
-          headers: getAuthHeader(),
+          headers: authHeader(),
         });
-        if (!mounted) return;
-        const arr = normalizeUsers(res.data);
+
+        if (!active) return;
+
+        const arr = Array.isArray(res.data.users)
+          ? res.data.users
+          : Array.isArray(res.data)
+          ? res.data
+          : [];
+
         setUsers(arr);
       } catch (err) {
-        // handle 401 explicitly
-        const status = err?.response?.status;
-        if (status === 401) {
-          // token missing/expired — clear and redirect to login
+        if (err?.response?.status === 401) {
           localStorage.removeItem("adminToken");
-          // Optional: show message then redirect
-          setError("Unauthorized. Redirecting to login...");
-          setTimeout(() => navigate("/admin/login"), 800);
+          setError("Session expired. Redirecting...");
+          setTimeout(() => navigate("/admin/login"), 1000);
           return;
         }
-        console.error("Users fetch error:", err);
+
+        console.error("User fetch error:", err);
         setError("Failed to fetch users");
       } finally {
-        if (mounted) setLoading(false);
+        if (active) setLoading(false);
       }
     };
 
-    fetchUsers();
-    return () => {
-      mounted = false;
-    };
-  }, [navigate, normalizeUsers]);
+    loadUsers();
+    return () => (active = false);
+  }, [navigate]);
 
-  if (loading) return <p className="text-center p-4">Loading...</p>;
-  if (error) return <p className="text-center text-red-500 p-4">{error}</p>;
+  // ============= LOADING UI =============
+  if (loading)
+    return (
+      <div className="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        {[...Array(6)].map((_, i) => (
+          <div
+            key={i}
+            className="bg-white p-4 rounded-xl shadow border animate-pulse"
+          >
+            <div className="h-5 bg-gray-200 w-1/2 rounded mb-3"></div>
+            <div className="h-4 bg-gray-200 w-3/4 rounded mb-2"></div>
+            <div className="h-4 bg-gray-200 w-2/5 rounded"></div>
+          </div>
+        ))}
+      </div>
+    );
 
+  // ============= ERROR UI =============
+  if (error)
+    return (
+      <p className="text-center p-4 text-red-600 font-medium">{error}</p>
+    );
+
+  // ============= MAIN RENDER =============
   return (
     <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">Users</h1>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <h1 className="text-3xl font-bold mb-6">Users</h1>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {users.length === 0 && (
-          <p className="text-center text-gray-600 col-span-full">No users found.</p>
+          <p className="text-gray-500 text-center col-span-full">
+            No users found.
+          </p>
         )}
 
         {users.map((user) => (
           <div
-            key={user._id ?? user.id}
-            className="bg-white shadow rounded-xl p-4 border hover:shadow-lg transition"
+            key={user._id}
+            className="bg-white p-5 rounded-xl shadow border hover:shadow-lg transition"
           >
-            <h2 className="font-semibold text-lg">{user.name ?? "Unknown User"}</h2>
-            <p className="text-sm text-gray-700">Email: {user.email ?? "N/A"}</p>
-            <p className="text-sm text-gray-700">Phone: {user.phone ?? "N/A"}</p>
+            <div className="flex items-center gap-4 mb-3">
+              <div className="w-12 h-12 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center font-semibold text-lg">
+                {user.name ? user.name[0].toUpperCase() : "U"}
+              </div>
+
+              <div>
+                <h2 className="font-semibold text-lg">
+                  {user.name || "Unknown User"}
+                </h2>
+                <p className="text-sm text-gray-500">{user.email}</p>
+              </div>
+            </div>
+
+            <div className="mt-4 text-sm text-gray-700 space-y-1">
+              <p>
+                <span className="font-medium">Phone:</span>{" "}
+                {user.phone || "N/A"}
+              </p>
+              <p>
+                <span className="font-medium">Registered:</span>{" "}
+                {new Date(user.createdAt).toLocaleDateString()}
+              </p>
+            </div>
           </div>
         ))}
       </div>
