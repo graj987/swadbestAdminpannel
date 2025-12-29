@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api";
 import imageCompression from "browser-image-compression";
+import { Link } from "react-router-dom";
 
 export default function Products() {
   const navigate = useNavigate();
@@ -22,8 +23,8 @@ export default function Products() {
 
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState("");
-  const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploading, ] = useState(false);
+  const [uploadProgress, ] = useState(0);
 
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -73,20 +74,6 @@ export default function Products() {
     if (fileRef.current) fileRef.current.value = "";
   };
 
-  const uploadToServer = async () => {
-    const fd = new FormData();
-    fd.append("image", file);
-
-    const res = await api.post("/api/admin/upload", fd, {
-      onUploadProgress: (evt) => {
-        if (evt.total) {
-          setUploadProgress(Math.round((evt.loaded * 100) / evt.total));
-        }
-      },
-    });
-
-    return res.data.secure_url;
-  };
 
   const submitProduct = async (e) => {
     e.preventDefault();
@@ -96,36 +83,6 @@ export default function Products() {
     if (!form.name.trim()) return setError("Product name required");
     if (!form.price) return setError("Price required");
     if (!file) return setError("Product image required");
-
-    try {
-      setUploading(true);
-
-      const imageUrl = await uploadToServer();
-
-      await api.post("/api/admin/products", {
-        ...form,
-        price: Number(form.price),
-        stock: Number(form.stock),
-        image: imageUrl,
-      });
-
-      setSuccess("Product added successfully");
-      setOpen(false);
-      setForm({
-        name: "",
-        price: "",
-        description: "",
-        category: "Other",
-        stock: 1,
-      });
-      resetUpload();
-      fetchProducts();
-    } catch (err) {
-      setError(err.response?.data?.message || "Failed to add product");
-    } finally {
-      setUploading(false);
-      setUploadProgress(0);
-    }
   };
 
   const deleteProduct = async (id) => {
@@ -146,11 +103,10 @@ export default function Products() {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-extrabold">Products</h1>
 
-        <button
-          onClick={() => setOpen(true)}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700"
-        >
+        <button>
+         <Link to="/admin/add-product">
           + Add Product
+          </Link>
         </button>
       </div>
 
