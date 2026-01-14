@@ -9,6 +9,7 @@ import {
   ResponsiveContainer,
   CartesianGrid,
 } from "recharts";
+import AdminNotifications from "./AdminNotification";
 
 function getAuthHeader() {
   const token = localStorage.getItem("adminToken");
@@ -104,7 +105,7 @@ export default function AdminDashboard() {
           label="Revenue"
           value={`₹${formatCurrency(stats.revenue)}`}
           color="orange"
-        />
+          />
       </div>
 
       {/* CHART + RECENT ITEMS */}
@@ -114,6 +115,7 @@ export default function AdminDashboard() {
         <div className="col-span-2 bg-white rounded-xl shadow border p-6">
           <h2 className="text-lg font-semibold mb-4">Revenue (Last 7 Days)</h2>
 
+          <AdminNotifications/>
           {chartData.length === 0 ? (
             <p className="text-gray-500 text-sm">No revenue data available.</p>
           ) : (

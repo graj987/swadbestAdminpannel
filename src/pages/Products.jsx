@@ -108,6 +108,11 @@ export default function Products() {
           + Add Product
           </Link>
         </button>
+        <button>
+         <Link to="/admin/add-hero" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+          + Add Hero
+          </Link>
+        </button>
       </div>
 
       {error && <p className="text-red-600 mb-3">{error}</p>}

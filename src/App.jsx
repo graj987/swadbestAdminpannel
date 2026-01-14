@@ -18,6 +18,9 @@ import Users from "./pages/Users";
 import Login from "./pages/Login";
 import Profile from "./pages/Profile";
 import Settings from "./pages/Setting";
+import AdminHero from "./pages/AdminHero";
+import AdminNotifications from "./pages/AdminNotification";
+import AdminNotificationsPage from "./components/NotificatoinBell";
 
 
 /* -------------------------------------------
@@ -91,11 +94,17 @@ export default function App() {
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="product" element={<Products />} />
             <Route path="add-product" element={<AddProduct />} />
+            <Route path="add-hero" element={< AdminHero/>} />
             <Route path="products/:id" element={<UpdateProduct />} />
             <Route path="orders" element={<Orders />} />
             <Route path="users" element={<Users />} />
             <Route path="settings" element={<Settings />} />
-
+            <Route path="notificatoin" element={<AdminNotifications />} />
+             <Route
+          path="notifications"
+          element={<AdminNotificationsPage/>}
+        />
+ 
 
             {/* fallback inside /admin */}
             <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />

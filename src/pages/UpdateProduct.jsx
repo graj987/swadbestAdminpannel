@@ -9,10 +9,11 @@ export default function UpdateProduct() {
 
   const [form, setForm] = useState({
     name: "",
-    price: "",
     description: "",
     category: "Other",
-    stock: 1,
+    weight: "",
+    price: "",
+    stock: "",
   });
 
   const [file, setFile] = useState(null);
@@ -23,18 +24,22 @@ export default function UpdateProduct() {
 
   const fileRef = useRef(null);
 
+  /* ================= LOAD PRODUCT ================= */
   useEffect(() => {
     (async () => {
       try {
         const res = await api.get(`/api/admin/products/${id}`);
         const p = res.data;
 
+        const v = p.variants?.[0]; // 🔒 FIRST VARIANT ONLY
+
         setForm({
           name: p.name,
-          price: p.price,
           description: p.description,
           category: p.category,
-          stock: p.stock,
+          weight: v?.weight || "",
+          price: v?.price || "",
+          stock: v?.stock || "",
         });
 
         setPreview(p.image);
@@ -45,6 +50,8 @@ export default function UpdateProduct() {
       }
     })();
   }, [id]);
+
+  /* ================= HANDLERS ================= */
 
   const handleChange = (e) =>
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
@@ -69,9 +76,14 @@ export default function UpdateProduct() {
     return res.data.secure_url;
   };
 
+  /* ================= SAVE ================= */
+
   const saveProduct = async (e) => {
     e.preventDefault();
     setError("");
+
+    if (!form.name.trim()) return setError("Name required");
+    if (!form.weight.trim()) return setError("Variant weight required");
 
     try {
       setSaving(true);
@@ -80,26 +92,37 @@ export default function UpdateProduct() {
       if (file) imageUrl = await uploadImage();
 
       await api.put(`/api/admin/products/${id}`, {
-        ...form,
+        name: form.name,
+        description: form.description,
+        category: form.category,
+        image: imageUrl,
+
+        // 🔥 VARIANT UPDATE
+        variantIndex: 0,
+        weight: form.weight,
         price: Number(form.price),
         stock: Number(form.stock),
-        image: imageUrl,
       });
 
       navigate("/admin/product");
     } catch (err) {
-      setError("Failed to update product",err);
+      setError(err.response?.data?.message || "Failed to update product");
     } finally {
       setSaving(false);
     }
   };
 
-  if (loading)
+  if (loading) {
     return <div className="p-6 text-center text-lg">Loading...</div>;
+  }
+
+  /* ================= UI ================= */
 
   return (
     <div className="max-w-3xl mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-5 text-center">Update Product</h1>
+      <h1 className="text-2xl font-bold mb-5 text-center">
+        Update Product
+      </h1>
 
       {error && (
         <p className="mb-4 p-2 bg-red-100 text-red-700 rounded text-center">
@@ -111,9 +134,8 @@ export default function UpdateProduct() {
         onSubmit={saveProduct}
         className="bg-white p-5 rounded-xl border shadow grid md:grid-cols-2 gap-5"
       >
-        {/* LEFT COMPACT FORM */}
+        {/* LEFT */}
         <div className="space-y-3">
-
           <div>
             <label className="text-sm font-medium">Product Name</label>
             <input
@@ -124,8 +146,18 @@ export default function UpdateProduct() {
             />
           </div>
 
-          {/* PRICE + STOCK (compact row) */}
-          <div className="grid grid-cols-2 gap-3">
+          {/* VARIANT */}
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className="text-sm font-medium">Weight</label>
+              <input
+                name="weight"
+                value={form.weight}
+                onChange={handleChange}
+                className="mt-1 w-full p-2 border rounded text-sm"
+              />
+            </div>
+
             <div>
               <label className="text-sm font-medium">Price (₹)</label>
               <input
@@ -150,27 +182,21 @@ export default function UpdateProduct() {
             </div>
           </div>
 
-          {/* CATEGORY (compact row) */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="col-span-2 md:col-span-1">
-              <label className="text-sm font-medium">Category</label>
-              <select
-                name="category"
-                value={form.category}
-                onChange={handleChange}
-                className="mt-1 w-full p-2 border rounded bg-white text-sm"
-              >
-                <option>Snacks</option>
-                <option>Meal</option>
-                <option>Sweets</option>
-                <option>Pickles</option>
-                <option>Drinks</option>
-                <option>Other</option>
-              </select>
-            </div>
-
-            {/* empty field you can use later (GST %, discount, rating, etc.) */}
-            <div />
+          <div>
+            <label className="text-sm font-medium">Category</label>
+            <select
+              name="category"
+              value={form.category}
+              onChange={handleChange}
+              className="mt-1 w-full p-2 border rounded bg-white text-sm"
+            >
+              <option>Snacks</option>
+              <option>Meal</option>
+              <option>Sweets</option>
+              <option>Pickles</option>
+              <option>Drinks</option>
+              <option>Other</option>
+            </select>
           </div>
 
           <div>
@@ -185,16 +211,13 @@ export default function UpdateProduct() {
           </div>
         </div>
 
-        {/* RIGHT SIDE IMAGE COMPACT */}
+        {/* RIGHT */}
         <div className="space-y-3">
           <label className="text-sm font-medium">Product Image</label>
 
-          <div className="w-full h-48 bg-gray-100 border rounded-lg overflow-hidden shadow-sm flex items-center justify-center">
+          <div className="w-full h-48 bg-gray-100 border rounded-lg overflow-hidden flex items-center justify-center">
             {preview ? (
-              <img
-                src={preview}
-                className="w-full h-full object-cover"
-              />
+              <img src={preview} className="w-full h-full object-cover" />
             ) : (
               <span className="text-gray-400 text-sm">No image</span>
             )}
@@ -213,11 +236,10 @@ export default function UpdateProduct() {
           )}
         </div>
 
-        {/* BUTTON FULL WIDTH */}
         <div className="md:col-span-2">
           <button
             disabled={saving}
-            className="w-full bg-blue-600 text-white py-2.5 rounded-lg font-medium hover:bg-blue-700 text-sm disabled:opacity-60"
+            className="w-full bg-blue-600 text-white py-2.5 rounded-lg font-medium hover:bg-blue-700 disabled:opacity-60"
           >
             {saving ? "Saving..." : "Update Product"}
           </button>

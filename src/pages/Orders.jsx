@@ -1,9 +1,16 @@
-// src/pages/Orders.jsx
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import api from "../api";
-import { X, Search, PackageCheck, Truck, CheckCircle, Trash2 } from "lucide-react";
-
-
+import {
+  Search,
+  X,
+  Truck,
+  PackageCheck,
+  CheckCircle,
+  MapPin,
+  FileText,
+  RefreshCw,
+  Barcode,
+} from "lucide-react";
 
 const getAuthHeader = () => {
   const token = localStorage.getItem("adminToken");
@@ -13,245 +20,318 @@ const getAuthHeader = () => {
 export default function Orders() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [selected, setSelected] = useState(null);
   const [query, setQuery] = useState("");
 
-  // =========================
-  // LOAD ALL ORDERS
-  // =========================
-  const fetchOrders = async () => {
+  // LOAD ORDERS
+  const loadOrders = async () => {
     try {
       setLoading(true);
-      const res = await api.get("/api/admin/orders", {
-        headers: getAuthHeader(),
-      });
+      const res = await api.get("/api/admin/orders", { headers: getAuthHeader() });
       setOrders(res.data);
-    } catch (err) {
-      console.error("Orders load error:", err);
-      alert("Failed to load orders");
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchOrders();
+    loadOrders();
   }, []);
 
-  // =========================
   // UPDATE STATUS
-  // =========================
-  const updateStatus = async (id, status) => {
+  const updateStatus = async (orderId, status) => {
     if (!confirm(`Change status to: ${status}?`)) return;
 
-    try {
-      await api.put(
-        `/api/admin/orders/${id}/status`,
-        { status },
-        { headers: getAuthHeader() }
-      );
+    await api.put(
+      `/api/admin/orders/${orderId}/status`,
+      { status },
+      { headers: getAuthHeader() }
+    );
 
-      // Reflect instantly
-      setOrders((prev) =>
-        prev.map((o) =>
-          o._id === id ? { ...o, orderStatus: status } : o
-        )
-      );
-
-      if (selectedOrder?._id === id) {
-        setSelectedOrder((prev) => ({ ...prev, orderStatus: status }));
-      }
-    } catch (err) {
-      console.error("Status update failed:", err);
-      alert("Failed to update status");
+    setOrders((p) =>
+      p.map((o) => (o._id === orderId ? { ...o, orderStatus: status } : o))
+    );
+    if (selected?._id === orderId) {
+      setSelected((prev) => ({ ...prev, orderStatus: status }));
     }
   };
 
-  // =========================
-  // FILTER
-  // =========================
-  const filteredOrders = orders.filter((o) => {
-    if (!query.trim()) return true;
-    const q = query.toLowerCase();
-    return (
-      o._id?.toLowerCase().includes(q) ||
-      o.user?.name?.toLowerCase().includes(q) ||
-      o.user?.email?.toLowerCase().includes(q)
-    );
-  });
+  // SHIPROCKET → SYNC ORDER
+  const syncShiprocket = async (orderId) => {
+    try {
+      const res = await api.post(
+        res.send(
+          "/api/shiprocket/create-orde", // your route
+          { orderId },
+          { headers: getAuthHeader() }
+        ));
 
-  // =========================
-  // UI
-  // =========================
+      alert("Synced with Shiprocket");
+      loadOrders();
+    } catch (err) {
+      alert(err.response?.data?.message || "Shiprocket sync failed");
+    }
+  };
+
+const getLabel = async (orderId) => {
+  try {
+    const res = await api.get(
+      `/api/shiprocket/label/${orderId}`,
+      { headers: getAuthHeader() }
+    );
+
+    const url = res.data?.labelUrl;
+    if (!url) return alert("Label not available");
+
+    window.open(url, "_blank"); // open PDF
+  } catch (err) {
+    console.error("Label failed:", err);
+    alert("Failed to generate label");
+  }
+};
+
+// =========================
+// DOWNLOAD MANIFEST
+// =========================
+const getManifest = async (shipmentId) => {
+  try {
+    const res = await api.get(
+      `/api/shiprocket/manifest/${shipmentId}`,
+      { headers: getAuthHeader() }
+    );
+
+    const url = res.data?.manifestUrl;
+    if (!url) return alert("Manifest not available");
+
+    window.open(url, "_blank");
+  } catch (err) {
+    console.error("Manifest failed:", err);
+    alert("Manifest generation failed");
+  }
+};
+
+
+  // SHIPROCKET → GENERATE AWB
+  const generateAWB = async (orderId) => {
+    try {
+      const res = await api.post(
+        "/api/shiprocket/awb",
+        { orderId },
+        { headers: getAuthHeader() }
+      );
+
+      alert(`AWB Generated: ${res.data.awb}`);
+      loadOrders();
+    } catch (err) {
+      alert(err.response?.data?.message || "Failed to generate AWB");
+    }
+  };
+
+
+  // SHIPROCKET → TRACK
+  const trackShipment = async (awb) => {
+    try {
+      const res = await api.get(
+        `/api/shiprocket/track/${awb}`,
+        { headers: getAuthHeader() }
+      );
+
+      alert(JSON.stringify(res.data, null, 2));
+    } catch {
+      alert("Unable to track shipment");
+    }
+  };
+
+  const filtered = orders.filter((o) =>
+    query.trim()
+      ? o._id.toLowerCase().includes(query.toLowerCase()) ||
+      o.user?.name?.toLowerCase().includes(query.toLowerCase())
+      : true
+  );
+
   return (
     <div className="p-6">
-      {/* HEADER */}
-      <div className="flex items-center justify-between mb-6">
+      {/* Header */}
+      <div className="flex justify-between mb-6">
         <h1 className="text-3xl font-bold">Orders</h1>
 
         <div className="flex items-center gap-2 bg-white shadow px-3 py-2 rounded-lg border">
-          <Search className="text-gray-500" size={18} />
+          <Search size={18} className="text-gray-500" />
           <input
-            className="outline-none"
             placeholder="Search orders..."
-            value={query}
+            className="outline-none text-sm"
             onChange={(e) => setQuery(e.target.value)}
           />
         </div>
       </div>
 
-      {/* LOADING */}
-      {loading && (
-        <div className="text-center py-10 text-gray-600">Loading orders...</div>
-      )}
+      {loading ? (
+        <div className="text-center py-10 text-gray-600">Loading...</div>
+      ) : filtered.length === 0 ? (
+        <div className="text-center text-gray-500 py-10">No orders found</div>
+      ) : (
+        <div className="grid gap-4">
+          {filtered.map((o) => (
+            <div
+              key={o._id}
+              className="bg-white border rounded-xl p-4 shadow flex justify-between"
+            >
+              <div>
+                <p className="text-xs text-gray-500">Order ID</p>
+                <p className="font-semibold">{o._id}</p>
 
-      {/* EMPTY */}
-      {!loading && filteredOrders.length === 0 && (
-        <div className="text-center text-gray-500 py-10">No orders found.</div>
-      )}
+                <p className="mt-1 text-sm">
+                  <strong>User:</strong> {o.user?.name}
+                </p>
 
-      {/* ORDER LIST */}
-      <div className="grid gap-4">
-        {filteredOrders.map((order) => (
-          <div
-            key={order._id}
-            className="bg-white border rounded-xl shadow p-4 flex items-center justify-between hover:shadow-md transition"
-          >
-            <div>
-              <p className="text-sm text-gray-500">Order ID</p>
-              <p className="font-semibold">{order._id}</p>
+                <p className="text-sm">
+                  <strong>Total:</strong> ₹{o.totalAmount}
+                </p>
 
-              <p className="mt-2 text-sm">
-                <strong>User:</strong>{" "}
-                {order.user?.name || order.user?.email || "-"}
-              </p>
+                <p className="text-sm">
+                  <strong>Status:</strong>{" "}
+                  <span className="font-medium text-blue-600">
+                    {o.orderStatus}
+                  </span>
+                </p>
 
-              <p className="text-sm">
-                <strong>Total:</strong> ₹{order.totalAmount}
-              </p>
+                {o.shiprocketOrderId && (
+                  <p className="text-sm mt-1 text-green-600">
+                    Shiprocket Synced ✔
+                  </p>
+                )}
+                {o.awb && (
+                  <p className="text-sm text-orange-600">
+                    AWB: {o.awb}
+                  </p>
+                )}
+              </div>
 
-              <p className="text-sm">
-                <strong>Status:</strong>{" "}
-                <span className="font-semibold text-blue-600">
-                  {order.orderStatus}
-                </span>
-              </p>
-            </div>
-
-            {/* ACTION BUTTONS */}
-            <div className="flex flex-col gap-2">
-              <button
-                onClick={() => setSelectedOrder(order)}
-                className="px-4 py-1 text-sm border rounded-lg hover:bg-gray-100"
-              >
-                View Details
-              </button>
-
-              <div className="grid grid-cols-2 gap-2">
+              <div className="flex flex-col gap-2 text-sm">
                 <button
-                  onClick={() => updateStatus(order._id, "processing")}
-                  className="px-3 py-1 text-xs bg-yellow-100 text-yellow-700 rounded-lg"
+                  onClick={() => setSelected(o)}
+                  className="border px-3 py-1 rounded hover:bg-gray-100"
                 >
-                  Processing
+                  View
                 </button>
+
                 <button
-                  onClick={() => updateStatus(order._id, "shipped")}
-                  className="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded-lg"
+                  onClick={() => syncShiprocket(o._id)}
+                  className="bg-purple-100 text-purple-700 px-3 py-1 rounded flex gap-1 items-center"
+                >
+                  <RefreshCw size={14} /> Sync
+                </button>
+
+                <button
+                  onClick={() => generateAWB(o._id)}
+                  className="bg-orange-100 text-orange-700 px-3 py-1 rounded flex gap-1 items-center"
+                >
+                  <Barcode size={14} /> AWB
+                </button>
+
+                {o.awb && (
+                  <button
+                    onClick={() => trackShipment(o.awb)}
+                    className="bg-green-100 text-green-700 px-3 py-1 rounded flex gap-1 items-center"
+                  >
+                    <Truck size={14} /> Track
+                  </button>
+                )}
+
+                <button
+                  onClick={() => updateStatus(o._id, "shipped")}
+                  className="bg-blue-100 text-blue-700 px-3 py-1 rounded"
                 >
                   Shipped
                 </button>
+
                 <button
-                  onClick={() => updateStatus(order._id, "delivered")}
-                  className="px-3 py-1 text-xs bg-green-100 text-green-700 rounded-lg"
+                  onClick={() => updateStatus(o._id, "delivered")}
+                  className="bg-green-100 text-green-700 px-3 py-1 rounded"
                 >
                   Delivered
                 </button>
-                <button
-                  onClick={() => updateStatus(order._id, "cancelled")}
-                  className="px-3 py-1 text-xs bg-red-100 text-red-700 rounded-lg"
-                >
-                  Cancel
-                </button>
+
+                {o.shipmentId && (
+                  <button
+                    onClick={() => getLabel(o._id)}
+                    className="bg-blue-100 text-blue-700 px-3 py-1 rounded"
+                  >
+                    Label
+                  </button>
+                )}
+
+                {o.shipmentId && (
+                  <button
+                    onClick={() => getManifest(o.shipmentId)}
+                    className="bg-green-100 text-green-700 px-3 py-1 rounded"
+                  >
+                    Manifest
+                  </button>
+                )}
+
               </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
-      {/* =========================
-           ORDER DETAILS MODAL
-      ========================= */}
-      {selectedOrder && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl p-6 relative">
-            {/* Close */}
+      {/* DETAILS MODAL */}
+      {selected && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 w-full max-w-2xl relative shadow-xl">
             <button
-              onClick={() => setSelectedOrder(null)}
-              className="absolute top-3 right-3 text-gray-600 hover:text-black"
+              onClick={() => setSelected(null)}
+              className="absolute top-3 right-3 text-gray-500 hover:text-black"
             >
               <X size={22} />
             </button>
 
             <h2 className="text-xl font-bold mb-4">Order Details</h2>
 
-            <div className="space-y-2 text-sm">
-              <p>
-                <strong>Order ID:</strong> {selectedOrder._id}
-              </p>
-              <p>
-                <strong>Status:</strong> {selectedOrder.orderStatus}
-              </p>
-              <p>
-                <strong>Total:</strong> ₹{selectedOrder.totalAmount}
-              </p>
-              <p>
-                <strong>User:</strong> {selectedOrder.user?.name}
-              </p>
+            <p><strong>Order ID:</strong> {selected._id}</p>
+            <p><strong>Status:</strong> {selected.orderStatus}</p>
+            <p><strong>Total:</strong> ₹{selected.totalAmount}</p>
 
-              <p>
-                <strong>Address:</strong>{" "}
-                {selectedOrder.shippingInfo
-                  ? `${selectedOrder.shippingInfo.address}, ${selectedOrder.shippingInfo.city}`
-                  : "-"}
-              </p>
+            <h3 className="mt-4 font-semibold flex items-center gap-2">
+              <MapPin size={18} /> Shipping Address
+            </h3>
+            <p className="text-sm">
+              {selected.address?.name}, {selected.address?.phone}<br />
+              {selected.address?.line1}<br />
+              {selected.address?.city} - {selected.address?.pincode}
+            </p>
 
-              <h3 className="font-semibold mt-4">Products</h3>
-              <div className="grid gap-3">
-                {selectedOrder.products?.map((p, i) => (
-                  <div key={i} className="flex items-center gap-3 border p-2 rounded-lg">
-                    <img
-                      src={p.image}
-                      className="w-14 h-14 object-cover rounded"
-                    />
-                    <div>
-                      <p className="font-medium">{p.name}</p>
-                      <p className="text-sm">Qty: {p.quantity}</p>
-                      <p className="text-sm">Price: ₹{p.price}</p>
-                    </div>
+            <h3 className="mt-4 font-semibold flex items-center gap-2">
+              <FileText size={18} /> Products
+            </h3>
+
+            <div className="mt-2 grid gap-3">
+              {selected.products?.map((p, idx) => (
+                <div key={idx} className="flex gap-2 border p-2 rounded">
+                  <div className="flex-1">
+                    <p className="font-medium">{p.product?.name}</p>
+                    <p className="text-sm">Qty: {p.quantity}</p>
+                    <p className="text-sm">₹{p.priceAtPurchase}</p>
                   </div>
-                ))}
-              </div>
+                </div>
+              ))}
+            </div>
 
-              {/* QUICK STATUS UPDATE */}
-              <div className="mt-6 flex gap-3 justify-end">
-                <button
-                  onClick={() =>
-                    updateStatus(selectedOrder._id, "shipped")
-                  }
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg"
-                >
-                  Mark Shipped
-                </button>
+            <div className="mt-6 flex justify-end gap-2">
+              <button
+                onClick={() => updateStatus(selected._id, "shipped")}
+                className="bg-blue-600 text-white px-4 py-2 rounded"
+              >
+                Mark Shipped
+              </button>
 
-                <button
-                  onClick={() =>
-                    updateStatus(selectedOrder._id, "delivered")
-                  }
-                  className="px-4 py-2 bg-green-600 text-white rounded-lg"
-                >
-                  Mark Delivered
-                </button>
-              </div>
+              <button
+                onClick={() => updateStatus(selected._id, "delivered")}
+                className="bg-green-600 text-white px-4 py-2 rounded"
+              >
+                Mark Delivered
+              </button>
             </div>
           </div>
         </div>
