@@ -1,6 +1,12 @@
 // src/App.jsx
 import React from "react";
-import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from "react-router-dom";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+  Outlet,
+} from "react-router-dom";
 
 import AuthProvider from "./context/AuthProvider";
 import { useAuth } from "./context/useAuth";
@@ -21,7 +27,10 @@ import Settings from "./pages/Setting";
 import AdminHero from "./pages/AdminHero";
 import AdminNotifications from "./pages/AdminNotification";
 import AdminNotificationsPage from "./components/NotificatoinBell";
-
+import AdminBlogs from "./pages/BlogPost";
+import AdminTrack from "./pages/AdminTrack";
+import AddBlog from "./pages/AddBlog";
+import EditBlog from "./pages/EditBlog";
 
 /* -------------------------------------------
    PROTECTED ROUTE WRAPPER
@@ -43,7 +52,6 @@ function AdminLayout() {
 
   return (
     <div className="flex">
-
       {/* FIXED SIDEBAR */}
       <aside className="w-64 fixed left-0 top-0 h-screen z-50">
         <Sidebar onLogout={logout} />
@@ -51,7 +59,6 @@ function AdminLayout() {
 
       {/* MAIN CONTENT AREA */}
       <div className="flex-1 ml-64">
-
         {/* FIXED HEADER THAT ALIGNS WITH SIDEBAR */}
         <Header onLogout={logout} />
 
@@ -59,10 +66,8 @@ function AdminLayout() {
         <div className="p-6 pt-24">
           <Outlet />
         </div>
-
       </div>
     </div>
-
   );
 }
 
@@ -71,12 +76,14 @@ function AdminLayout() {
 --------------------------------------------- */
 export default function App() {
   return (
-  
     <AuthProvider>
       <Router>
         <Routes>
           {/* Root → dashboard */}
-          <Route path="/" element={<Navigate to="/admin/dashboard" replace />} />
+          <Route
+            path="/"
+            element={<Navigate to="/admin/dashboard" replace />}
+          />
 
           {/* Public route */}
           <Route path="/admin/login" element={<Login />} />
@@ -94,25 +101,27 @@ export default function App() {
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="product" element={<Products />} />
             <Route path="add-product" element={<AddProduct />} />
-            <Route path="add-hero" element={< AdminHero/>} />
+            <Route path="add-hero" element={<AdminHero />} />
             <Route path="products/:id" element={<UpdateProduct />} />
             <Route path="orders" element={<Orders />} />
             <Route path="users" element={<Users />} />
             <Route path="settings" element={<Settings />} />
             <Route path="notificatoin" element={<AdminNotifications />} />
-             <Route
-          path="notifications"
-          element={<AdminNotificationsPage/>}
-        />
- 
+            <Route path="/admin/blogs" element={<AdminBlogs />} />
+            <Route path="/admin/blogs/new" element={<AddBlog />} />
+            <Route path="/admin/blogs/edit/:id" element={<EditBlog />} />
+            <Route path="notifications" element={<AdminNotificationsPage />} />
+            <Route path="/admin/track/:awb" element={<AdminTrack />} />
+
 
             {/* fallback inside /admin */}
-            <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
+            <Route
+              path="*"
+              element={<Navigate to="/admin/dashboard" replace />}
+            />
           </Route>
-
         </Routes>
       </Router>
     </AuthProvider>
-    
   );
 }

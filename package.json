@@ -13,6 +13,8 @@
     "@cloudinary/react": "^1.14.3",
     "@cloudinary/url-gen": "^1.22.0",
     "@tailwindcss/vite": "^4.1.16",
+    "@tiptap/react": "^3.17.1",
+    "@tiptap/starter-kit": "^3.17.1",
     "axios": "^1.13.2",
     "browser-image-compression": "^2.0.2",
     "lucide-react": "^0.554.0",

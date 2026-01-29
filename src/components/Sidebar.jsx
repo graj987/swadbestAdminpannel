@@ -10,7 +10,10 @@ import {
   Settings,
   LogOut,
   X,
+  Bell,
+  Newspaper,
 } from "lucide-react";
+import AddBlog from "../pages/AddBlog";
 
 export default function Sidebar({ onLogout, onClose }) {
   const menu = [
@@ -20,7 +23,12 @@ export default function Sidebar({ onLogout, onClose }) {
     { label: "Orders", icon: ShoppingCart, to: "/admin/orders" },
     { label: "Users", icon: Users, to: "/admin/users" },
     { label: "Profile", icon: Users, to: "/admin/profile" },
-    { label: "Settings", icon: Settings, to: "/admin/settings" }
+    { label: "Settings", icon: Settings, to: "/admin/settings" },
+    { label: "Notifications", icon: Bell, to: "/admin/notifications" },
+    { label: "AddBlog ", icon: PlusCircle, to: "/admin/blogs/new" },
+    { label: "Blogs", icon: Newspaper, to: "/admin/blogs" },
+    
+
 
   ];
 

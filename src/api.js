@@ -18,7 +18,7 @@ const getBaseURL = () => {
   }
 
   // fallback
-  return "https://swadbackendserver.onrender.com/";
+  return "https://swadbackendserver.onrender.com";
 };
 
 const api = axios.create({
