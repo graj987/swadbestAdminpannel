@@ -1,6 +1,9 @@
 import React from "react";
+import { useEffect } from "react";
 import { Outlet, Link, useLocation } from "react-router-dom";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+
 import {
   LayoutDashboard,
   Users,
@@ -20,7 +23,8 @@ import {
 import { Button } from "@/Components/ui/button";
 import { Input } from "@/Components/ui/input";
 import { useTheme } from "../pages/TheamProvider";
-
+import { connectAdminSocket, disconnectAdminSocket } from "@/utils/socket";
+import useAdminNotifications from "../pages/AdminNotification";
 /* ================= NAVIGATION ================= */
 
 const navigation = [
@@ -36,9 +40,18 @@ const navigation = [
 /* ================= LAYOUT ================= */
 
 export default function AdminLayout() {
+  const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { theme, toggleTheme } = useTheme();
+  const  { unreadCount,} = useAdminNotifications();
+
+  useEffect(() => {
+    const token = localStorage.getItem("adminToken");
+    connectAdminSocket(token);
+
+    return () => disconnectAdminSocket();
+  }, []);
 
   return (
     <div className="h-screen flex bg-gray-50 dark:bg-gray-900">
@@ -168,9 +181,30 @@ export default function AdminLayout() {
             </Button>
 
             {/* NOTIFICATIONS */}
-            <Button variant="ghost" size="sm" className="relative">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="relative"
+              onClick={() => navigate("/admin/notifications")}
+            >
               <Bell className="w-5 h-5" />
-              <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
+
+              {unreadCount > 0 && (
+                <span
+                  className="
+        absolute -top-1 -right-1
+        min-w-[18px] h-[18px]
+        px-1
+        flex items-center justify-center
+        text-[10px] font-bold
+        text-white
+        bg-red-500
+        rounded-full
+      "
+                >
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </span>
+              )}
             </Button>
           </div>
         </header>
