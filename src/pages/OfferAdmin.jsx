@@ -1,7 +1,36 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
+import { useEffect, useState } from "react";
 import api from "../api";
 import useAuth from "@/Hooks/useAuth";
 
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/Components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/Components/ui/table";
+import { Input } from "@/Components/ui/input";
+import { Button } from "@/Components/ui/button";
+import { Badge } from "@/Components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/Components/ui/select";
+
+import { Trash2, Power } from "lucide-react";
+
+/* ================= DEFAULT FORM ================= */
 const emptyForm = {
   title: "",
   subtitle: "",
@@ -14,187 +43,291 @@ const emptyForm = {
   type: "flash",
 };
 
-const OffersAdmin = () => {
+export default function OffersAdmin() {
   const { getAuthHeader } = useAuth();
+
   const [offers, setOffers] = useState([]);
   const [products, setProducts] = useState([]);
   const [form, setForm] = useState(emptyForm);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  /* ---------- LOAD DATA ---------- */
+  /* ================= LOAD ================= */
+  // Load offers and products
   const loadData = async () => {
-    const [offersRes, productsRes] = await Promise.all([
-      api.get("/api/offers/all", { headers: getAuthHeader() }),
-      api.get("/api/products"),
-    ]);
+    try {
+      const [offersRes, productsRes] = await Promise.all([
+        api.get("/api/offers/all", { headers: getAuthHeader() }),
+        api.get("/api/products"),
+      ]);
 
-    setOffers(offersRes.data.data || []);
-    setProducts(productsRes.data || []);
+      setOffers(offersRes.data.data || []);
+      setProducts(productsRes.data || []);
+    } catch {
+      setError("Failed to load offers");
+    }
   };
 
-  useEffect(() => {
-    loadData();
-  }, []);
-  
+useEffect(() => {
+  const loadData = async () => {
+    try {
+      const [offersRes, productsRes] = await Promise.all([
+        api.get("/api/offers/all", { headers: getAuthHeader() }),
+        api.get("/api/products"),
+      ]);
 
-  /* ---------- CREATE OFFER ---------- */
+      setOffers(offersRes.data.data || []);
+      setProducts(productsRes.data || []);
+    } catch {
+      setError("Failed to load offers");
+    }
+  };
+
+  loadData();
+}, [getAuthHeader]); // ✅ EMPTY dependency array
+
+
+  /* ================= CREATE ================= */
   const createOffer = async () => {
-    if (!form.title || !form.image || !form.product) {
-      alert("Missing required fields");
+    setError("");
+
+    if (!form.title || !form.image || !form.product || !form.discountValue) {
+      setError("Please fill all required fields");
       return;
     }
 
-    setLoading(true);
-    await api.post("/api/offers", form, {
-      headers: getAuthHeader(),
-    });
+    try {
+      setLoading(true);
+      await api.post("/api/offers", form, {
+        headers: getAuthHeader(),
+      });
 
-    setForm(emptyForm);
-    await loadData();
-    setLoading(false);
+      setForm(emptyForm);
+      loadData();
+    } catch {
+      setError("Failed to create offer");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  /* ---------- TOGGLE ---------- */
+  /* ================= TOGGLE ================= */
   const toggleOffer = async (id) => {
-    await api.patch(`/api/offers/${id}/toggle`, {}, {
-      headers: getAuthHeader(),
-    });
+    await api.patch(
+      `/api/offers/${id}/toggle`,
+      {},
+      { headers: getAuthHeader() }
+    );
     loadData();
   };
 
-  /* ---------- DELETE ---------- */
+  /* ================= DELETE ================= */
   const deleteOffer = async (id) => {
-    if (!window.confirm("Delete this offer?")) return;
+    if (!confirm("Delete this offer permanently?")) return;
     await api.delete(`/api/offers/${id}`, {
       headers: getAuthHeader(),
     });
     loadData();
   };
 
+  /* ================= UI ================= */
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      <h1 className="text-3xl font-bold mb-6">🔥 Offers Management</h1>
-
-      {/* ================= CREATE ================= */}
-      <div className="bg-white p-6 rounded-xl shadow mb-10 grid md:grid-cols-3 gap-4">
-        <input
-          placeholder="Title"
-          value={form.title}
-          onChange={(e) => setForm({ ...form, title: e.target.value })}
-          className="border p-2 rounded"
-        />
-
-        <input
-          placeholder="Subtitle"
-          value={form.subtitle}
-          onChange={(e) => setForm({ ...form, subtitle: e.target.value })}
-          className="border p-2 rounded"
-        />
-
-        <input
-          placeholder="Image URL"
-          value={form.image}
-          onChange={(e) => setForm({ ...form, image: e.target.value })}
-          className="border p-2 rounded"
-        />
-
-        <select
-          value={form.product}
-          onChange={(e) => setForm({ ...form, product: e.target.value })}
-          className="border p-2 rounded"
-        >
-          <option value="">Select Product</option>
-          {products.map((p) => (
-            <option key={p._id} value={p._id}>{p.name}</option>
-          ))}
-        </select>
-
-        <select
-          value={form.type}
-          onChange={(e) => setForm({ ...form, type: e.target.value })}
-          className="border p-2 rounded"
-        >
-          <option value="flash">Flash Sale</option>
-          <option value="latest">Latest Offer</option>
-        </select>
-
-        <select
-          value={form.discountType}
-          onChange={(e) => setForm({ ...form, discountType: e.target.value })}
-          className="border p-2 rounded"
-        >
-          <option value="percentage">Percentage</option>
-          <option value="flat">Flat</option>
-        </select>
-
-        <input
-          type="number"
-          placeholder="Discount value"
-          value={form.discountValue}
-          onChange={(e) => setForm({ ...form, discountValue: e.target.value })}
-          className="border p-2 rounded"
-        />
-
-        <input
-          type="datetime-local"
-          onChange={(e) => setForm({ ...form, startTime: e.target.value })}
-          className="border p-2 rounded"
-        />
-
-        <input
-          type="datetime-local"
-          onChange={(e) => setForm({ ...form, endTime: e.target.value })}
-          className="border p-2 rounded"
-        />
-
-        <button
-          disabled={loading}
-          onClick={createOffer}
-          className="bg-orange-600 text-white py-2 rounded font-semibold col-span-full"
-        >
-          {loading ? "Creating..." : "Create Offer"}
-        </button>
+    <div className="space-y-6">
+      {/* HEADER */}
+      <div>
+        <h1 className="text-3xl font-bold">Offers Management</h1>
+        <p className="text-muted-foreground">
+          Flash sales & latest offers control
+        </p>
       </div>
 
-      {/* ================= LIST ================= */}
-      <div className="space-y-4">
-        {offers.map((o) => (
-          <div
-            key={o._id}
-            className="flex items-center justify-between bg-white p-4 rounded-xl shadow border"
+      {/* CREATE OFFER */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Create New Offer</CardTitle>
+        </CardHeader>
+        <CardContent className="grid md:grid-cols-3 gap-4">
+          <Input
+            placeholder="Title *"
+            value={form.title}
+            onChange={(e) => setForm({ ...form, title: e.target.value })}
+          />
+
+          <Input
+            placeholder="Subtitle"
+            value={form.subtitle}
+            onChange={(e) => setForm({ ...form, subtitle: e.target.value })}
+          />
+
+          <Input
+            placeholder="Image URL *"
+            value={form.image}
+            onChange={(e) => setForm({ ...form, image: e.target.value })}
+          />
+
+          <Select
+            value={form.product}
+            onValueChange={(v) => setForm({ ...form, product: v })}
           >
-            <div>
-              <p className="font-semibold">{o.title}</p>
-              <p className="text-xs text-gray-500">
-                {o.type.toUpperCase()} • {o.discountValue}
-                {o.discountType === "percentage" ? "%" : "₹"}
-              </p>
-            </div>
+            <SelectTrigger>
+              <SelectValue placeholder="Select product *" />
+            </SelectTrigger>
+            <SelectContent>
+              {products.map((p) => (
+                <SelectItem key={p._id} value={p._id}>
+                  {p.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-            <div className="flex gap-3">
-              <button
-                onClick={() => toggleOffer(o._id)}
-                className={`px-4 py-1 rounded text-sm font-semibold ${
-                  o.isActive
-                    ? "bg-green-100 text-green-700"
-                    : "bg-gray-200 text-gray-600"
-                }`}
-              >
-                {o.isActive ? "Active" : "Inactive"}
-              </button>
+          <Select
+            value={form.type}
+            onValueChange={(v) => setForm({ ...form, type: v })}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="flash">Flash Sale</SelectItem>
+              <SelectItem value="latest">Latest Offer</SelectItem>
+            </SelectContent>
+          </Select>
 
-              <button
-                onClick={() => deleteOffer(o._id)}
-                className="text-red-500 text-sm"
-              >
-                Delete
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
+          <Select
+            value={form.discountType}
+            onValueChange={(v) => setForm({ ...form, discountType: v })}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="percentage">Percentage</SelectItem>
+              <SelectItem value="flat">Flat</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Input
+            type="number"
+            placeholder="Discount value *"
+            value={form.discountValue}
+            onChange={(e) =>
+              setForm({ ...form, discountValue: e.target.value })
+            }
+          />
+
+          <Input
+            type="datetime-local"
+            onChange={(e) =>
+              setForm({ ...form, startTime: e.target.value })
+            }
+          />
+
+          <Input
+            type="datetime-local"
+            onChange={(e) => setForm({ ...form, endTime: e.target.value })}
+          />
+
+          {error && (
+            <p className="text-sm text-red-600 col-span-full">
+              {error}
+            </p>
+          )}
+
+          <Button
+            disabled={loading}
+            onClick={createOffer}
+            className="col-span-full"
+          >
+            {loading ? "Creating…" : "Create Offer"}
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* OFFERS LIST */}
+      <Card>
+        <CardHeader>
+          <CardTitle>All Offers</CardTitle>
+        </CardHeader>
+
+        <CardContent>
+          {offers.length === 0 ? (
+            <p className="text-muted-foreground text-center py-6">
+              No offers created
+            </p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Title</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Discount</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">
+                    Actions
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+
+              <TableBody>
+                {offers.map((o) => (
+                  <TableRow key={o._id}>
+                    <TableCell>
+                      <p className="font-medium">{o.title}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {o.subtitle}
+                      </p>
+                    </TableCell>
+
+                    <TableCell>
+                      <Badge variant="outline">
+                        {o.type.toUpperCase()}
+                      </Badge>
+                    </TableCell>
+
+                    <TableCell>
+                      {o.discountValue}
+                      {o.discountType === "percentage" ? "%" : "₹"}
+                    </TableCell>
+
+                    <TableCell>
+                      <Badge
+                        className={
+                          o.isActive
+                            ? "bg-green-100 text-green-700"
+                            : "bg-gray-200 text-gray-600"
+                        }
+                      >
+                        {o.isActive ? "Active" : "Inactive"}
+                      </Badge>
+                    </TableCell>
+
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          size="icon"
+                          variant="outline"
+                          onClick={() => toggleOffer(o._id)}
+                        >
+                          <Power className="w-4 h-4" />
+                        </Button>
+
+                        <Button
+                          size="icon"
+                          variant="destructive"
+                          onClick={() => deleteOffer(o._id)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
-};
-
-export default OffersAdmin;
+}

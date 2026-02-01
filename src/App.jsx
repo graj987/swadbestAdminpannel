@@ -25,7 +25,7 @@ import Users from "./pages/Users";
 import Profile from "./pages/Profile";
 import Settings from "./pages/Setting";
 import AdminHero from "./pages/AdminHero";
-import AdminNotificationsPage from "./components/NotificatoinBell";
+import AdminNotificationsPage from "./pages/AdminNotification";
 import AdminBlogs from "./pages/BlogPost";
 import AddBlog from "./pages/AddBlog";
 import EditBlog from "./pages/EditBlog";

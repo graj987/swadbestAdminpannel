@@ -1,152 +1,220 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
+import { useEffect, useState } from "react";
 import api from "../api";
 
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/Components/ui/card";
+import { Button } from "@/Components/ui/button";
+import { Badge } from "@/Components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/Components/ui/select";
+import { Separator } from "@/Components/ui/separator";
+
 export default function AdminHero() {
-    const [products, setProducts] = useState([]);
-    const [selectedProductId, setSelectedProductId] = useState("");
-    const [variantIndex, setVariantIndex] = useState(0);
-    const [loading, setLoading] = useState(true);
-    const [saving, setSaving] = useState(false);
+  const [products, setProducts] = useState([]);
+  const [selectedProductId, setSelectedProductId] = useState("");
+  const [variantIndex, setVariantIndex] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
-    /* ================= FETCH PRODUCTS ================= */
-    useEffect(() => {
-        const fetchProducts = async () => {
-            try {
-                const res = await api.get("api/admin/products");
-                setProducts(res.data);
+  /* ================= LOAD PRODUCTS ================= */
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await api.get("/api/admin/products");
+        setProducts(res.data || []);
 
-                const hero = res.data.find(p => p.isHero);
-                if (hero) {
-                    setSelectedProductId(hero._id);
-                    setVariantIndex(hero.heroVariantIndex ?? 0);
-                }
-            } catch (err) {
-                alert("Failed to load products", err);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchProducts();
-    }, []);
-
-    const selectedProduct = products.find(
-        p => p._id === selectedProductId
-    );
-    const selectedVariant =
-        selectedProduct?.variants?.[variantIndex];
-
-
-    /* ================= SAVE HERO ================= */
-    const saveHero = async () => {
-        if (!selectedProductId) {
-            return alert("Select a product");
+        const hero = res.data.find((p) => p.isHero);
+        if (hero) {
+          setSelectedProductId(hero._id);
+          setVariantIndex(hero.heroVariantIndex ?? 0);
         }
-
-        setSaving(true);
-        try {
-            await api.put("api/admin/hero", {
-                productId: selectedProductId,
-                heroVariantIndex: variantIndex,
-            });
-
-            alert("Hero product updated");
-        } catch (err) {
-            alert("Failed to update hero", err);
-        } finally {
-            setSaving(false);
-        }
+      } catch {
+        setError("Failed to load products");
+      } finally {
+        setLoading(false);
+      }
     };
 
-    if (loading) return <p className="text-center">Loading...</p>;
+    load();
+  }, []);
 
+  const selectedProduct = products.find(
+    (p) => p._id === selectedProductId
+  );
+  const selectedVariant =
+    selectedProduct?.variants?.[variantIndex];
+
+  /* ================= SAVE HERO ================= */
+  const saveHero = async () => {
+    setError("");
+    if (!selectedProductId) {
+      setError("Please select a product");
+      return;
+    }
+
+    try {
+      setSaving(true);
+      await api.put("/api/admin/hero", {
+        productId: selectedProductId,
+        heroVariantIndex: variantIndex,
+      });
+    } catch {
+      setError("Failed to update hero product");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
     return (
-        <div className="max-w-md mx-auto p-6 bg-white rounded-xl shadow">
-            <h2 className="text-xl font-bold mb-4">Hero Product</h2>
-
-            {/* PRODUCT SELECT */}
-            <label className="block text-sm font-medium mb-1">
-                Select Product
-            </label>
-            <select
-                value={selectedProductId}
-                onChange={(e) => {
-                    setSelectedProductId(e.target.value);
-                    setVariantIndex(0);
-                }}
-                className="w-full border p-3 rounded mb-4"
-            >
-                <option value="">-- Select product --</option>
-                {products.map(p => (
-                    <option key={p._id} value={p._id}>
-                        {p.name}
-                    </option>
-                ))}
-            </select>
-
-            {/* VARIANT SELECT */}
-            {selectedProduct && (
-                <>
-                    <label className="block text-sm font-medium mb-1">
-                        Hero Variant
-                    </label>
-                    <select
-                        value={variantIndex}
-                        onChange={(e) =>
-                            setVariantIndex(Number(e.target.value))
-                        }
-                        className="w-full border p-3 rounded mb-4"
-                    >
-                        {selectedProduct.variants.map((v, i) => (
-                            <option key={i} value={i}>
-                                {v.weight} — ₹{v.price} (Stock: {v.stock})
-                            </option>
-                        ))}
-                    </select>
-                </>
-            )}
-            {/* HERO PREVIEW */}
-            {selectedProduct && selectedVariant && (
-                <div className="mt-6 border rounded-xl overflow-hidden">
-                    <div className="bg-orange-600 text-white px-4 py-3">
-                        <p className="text-xs uppercase tracking-wide opacity-80">
-                            Hero Preview (User View)
-                        </p>
-                        <p className="text-lg font-semibold">
-                            {selectedVariant.weight} · ₹{selectedVariant.price}
-                        </p>
-                        <p className="text-sm opacity-90">
-                            Stock:{" "}
-                            {selectedVariant.stock > 0
-                                ? selectedVariant.stock
-                                : "Out of stock"}
-                        </p>
-                    </div>
-
-                    <div className="bg-white px-4 py-3 flex justify-end">
-                        <button
-                            disabled={selectedVariant.stock === 0}
-                            className="
-          bg-orange-600 text-white
-          px-5 py-2 rounded-full font-semibold
-          disabled:opacity-50
-          disabled:cursor-not-allowed
-        "
-                        >
-                            Buy Now
-                        </button>
-                    </div>
-                </div>
-            )}
-
-
-            <button
-                onClick={saveHero}
-                disabled={saving}
-                className="w-full bg-orange-600 text-white py-3 rounded-lg font-semibold disabled:opacity-60"
-            >
-                {saving ? "Saving..." : "Save Hero"}
-            </button>
-        </div>
+      <p className="text-center text-muted-foreground">
+        Loading hero products…
+      </p>
     );
+  }
+
+  /* ================= UI ================= */
+  return (
+    <div className="max-w-2xl space-y-6">
+      {/* HEADER */}
+      <div>
+        <h1 className="text-3xl font-bold">Hero Product</h1>
+        <p className="text-muted-foreground">
+          Select the main product shown on the homepage
+        </p>
+      </div>
+
+      {/* CONFIG CARD */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Hero Configuration</CardTitle>
+        </CardHeader>
+
+        <CardContent className="space-y-5">
+          {/* PRODUCT SELECT */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium">
+              Select Product
+            </label>
+            <Select
+              value={selectedProductId}
+              onValueChange={(v) => {
+                setSelectedProductId(v);
+                setVariantIndex(0);
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Choose product" />
+              </SelectTrigger>
+              <SelectContent>
+                {products.map((p) => (
+                  <SelectItem key={p._id} value={p._id}>
+                    {p.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* VARIANT SELECT */}
+          {selectedProduct && (
+            <div className="space-y-2">
+              <label className="text-sm font-medium">
+                Hero Variant
+              </label>
+              <Select
+                value={String(variantIndex)}
+                onValueChange={(v) =>
+                  setVariantIndex(Number(v))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {selectedProduct.variants.map((v, i) => (
+                    <SelectItem key={i} value={String(i)}>
+                      {v.weight} · ₹{v.price} · Stock: {v.stock}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {error && (
+            <p className="text-sm text-red-600">{error}</p>
+          )}
+
+          <Button
+            onClick={saveHero}
+            disabled={saving}
+            className="w-full"
+          >
+            {saving ? "Saving…" : "Save Hero Product"}
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* PREVIEW */}
+      {selectedProduct && selectedVariant && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Hero Preview</CardTitle>
+          </CardHeader>
+
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-semibold">
+                  {selectedProduct.name}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {selectedVariant.weight}
+                </p>
+              </div>
+
+              <Badge
+                className={
+                  selectedVariant.stock > 0
+                    ? "bg-green-100 text-green-700"
+                    : "bg-red-100 text-red-700"
+                }
+              >
+                {selectedVariant.stock > 0
+                  ? "In Stock"
+                  : "Out of Stock"}
+              </Badge>
+            </div>
+
+            <Separator />
+
+            <div className="flex items-center justify-between">
+              <p className="text-xl font-bold">
+                ₹{selectedVariant.price}
+              </p>
+
+              <Button
+                disabled={selectedVariant.stock === 0}
+                className="rounded-full"
+              >
+                Buy Now
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
 }
