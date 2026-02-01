@@ -10,7 +10,7 @@ import {
   Activity,
 } from "lucide-react";
 
-import { Card, CardContent, CardHeader, CardTitle } from "../Components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/Components/ui/card";
 import {
   AreaChart,
   Area,
