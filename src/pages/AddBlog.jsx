@@ -3,11 +3,11 @@ import { useNavigate } from "react-router-dom";
 import api from "../api";
 import AdminEditor from "../components/AdminEditor";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/Components/ui/card";
-import { Input } from "@/Components/ui/input";
-import { Button } from "@/Components/ui/button";
-import { Badge } from "@/Components/ui/badge";
-import { Separator } from "@/Components/ui/separator";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+
 
 import { ImagePlus, Eye } from "lucide-react";
 

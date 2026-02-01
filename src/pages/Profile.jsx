@@ -3,11 +3,11 @@ import api from "../api";
 import { useAuth } from "../context/useAuth";
 import imageCompression from "browser-image-compression";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/Components/ui/card";
-import { Label } from "@/Components/ui/label";
-import { Input } from "@/Components/ui/input";
-import { Button } from "@/Components/ui/button";
-import { Separator } from "@/Components/ui/separator";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 
 export default function Profile() {
   const { admin, setAdmin } = useAuth();

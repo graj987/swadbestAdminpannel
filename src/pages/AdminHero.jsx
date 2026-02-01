@@ -7,17 +7,17 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-} from "@/Components/ui/card";
-import { Button } from "@/Components/ui/button";
-import { Badge } from "@/Components/ui/badge";
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/Components/ui/select";
-import { Separator } from "@/Components/ui/separator";
+} from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
 
 export default function AdminHero() {
   const [products, setProducts] = useState([]);

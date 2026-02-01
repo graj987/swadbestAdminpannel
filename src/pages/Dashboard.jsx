@@ -10,7 +10,7 @@ import {
   Activity,
 } from "lucide-react";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/Components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   AreaChart,
   Area,
@@ -31,9 +31,9 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/Components/ui/table";
+} from "@/components/ui/table";
 
-import { Badge } from "@/Components/ui/badge";
+import { Badge } from "@/components/ui/badge";
 
 /* ------------------ HELPERS ------------------ */
 

@@ -18,8 +18,8 @@ import {
   Newspaper,
 } from "lucide-react";
 
-import { Button } from "@/Components/ui/button";
-import { Input } from "@/Components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useTheme } from "@/pages/TheamProvider";
 
 import { connectAdminSocket, disconnectAdminSocket } from "@/utils/socket";

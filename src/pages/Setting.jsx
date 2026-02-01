@@ -1,18 +1,18 @@
 import React, { useState } from "react";
 import api from "../api";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/Components/ui/card";
-import { Label } from "@/Components/ui/label";
-import { Input } from "@/Components/ui/input";
-import { Button } from "@/Components/ui/button";
-import { Switch } from "@/Components/ui/switch";
-import { Separator } from "@/Components/ui/separator";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { Separator } from "@/components/ui/separator";
 import {
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
-} from "@/Components/ui/tabs";
+} from "@/components/ui/tabs";
 
 import { Bell, Lock, User, Palette } from "lucide-react";
 import Profile from "./Profile";
