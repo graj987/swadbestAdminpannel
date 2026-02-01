@@ -3,6 +3,14 @@ import { useNavigate } from "react-router-dom";
 import api from "../api";
 import AdminEditor from "../components/AdminEditor";
 
+import { Card, CardContent, CardHeader, CardTitle } from "@/Components/ui/card";
+import { Input } from "@/Components/ui/input";
+import { Button } from "@/Components/ui/button";
+import { Badge } from "@/Components/ui/badge";
+import { Separator } from "@/Components/ui/separator";
+
+import { ImagePlus, Eye } from "lucide-react";
+
 export default function AddBlog() {
   const navigate = useNavigate();
   const uploadRef = useRef(null);
@@ -12,7 +20,6 @@ export default function AddBlog() {
     excerpt: "",
     content: "",
     readTime: "3 min read",
-    status: "draft",
   });
 
   const [imageFile, setImageFile] = useState(null);
@@ -21,13 +28,12 @@ export default function AddBlog() {
   const [previewMode, setPreviewMode] = useState(false);
   const [error, setError] = useState("");
 
-  /* cleanup preview URL */
+  /* ---------------- CLEANUP ---------------- */
   useEffect(() => {
     return () => imagePreview && URL.revokeObjectURL(imagePreview);
   }, [imagePreview]);
 
-  /* ================= VALIDATION ================= */
-
+  /* ---------------- VALIDATION ---------------- */
   const validate = () => {
     if (!form.title.trim()) return "Title is required";
     if (!form.excerpt.trim()) return "Excerpt is required";
@@ -36,20 +42,17 @@ export default function AddBlog() {
     return null;
   };
 
-  /* ================= IMAGE HANDLER ================= */
-
+  /* ---------------- IMAGE ---------------- */
   const handleImage = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     if (!file.type.startsWith("image/")) {
-      setError("Only image files are allowed");
-      return;
+      return setError("Only image files allowed");
     }
 
     if (file.size > 2 * 1024 * 1024) {
-      setError("Image must be under 2MB");
-      return;
+      return setError("Image must be under 2MB");
     }
 
     setError("");
@@ -57,8 +60,7 @@ export default function AddBlog() {
     setImagePreview(URL.createObjectURL(file));
   };
 
-  /* ================= SUBMIT ================= */
-
+  /* ---------------- SUBMIT ---------------- */
   const submit = async (status) => {
     setError("");
     const err = validate();
@@ -75,9 +77,7 @@ export default function AddBlog() {
       fd.append("status", status);
       fd.append("image", imageFile);
 
-      // ❗ DO NOT SET Content-Type manually
       await api.post("/api/admin/blogs/add", fd);
-
       navigate("/admin/blogs");
     } catch (e) {
       setError(e.response?.data?.message || "Failed to save blog");
@@ -86,136 +86,156 @@ export default function AddBlog() {
     }
   };
 
-  /* ================= UI ================= */
+  /* ================= RENDER ================= */
 
   return (
-    <div className="max-w-7xl mx-auto p-6">
-      <h1 className="text-3xl font-bold mb-6">Create Blog</h1>
+    <div className="p-4 lg:p-8 space-y-6 max-w-7xl mx-auto">
+      {/* HEADER */}
+      <div>
+        <h1 className="text-3xl font-bold">Create Blog</h1>
+        <p className="text-muted-foreground">
+          Write and publish a new blog post
+        </p>
+      </div>
 
       {error && (
-        <div className="mb-4 rounded-lg bg-red-50 border border-red-200 p-3 text-red-600">
+        <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-destructive">
           {error}
         </div>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* LEFT SIDE – CONTENT */}
+        {/* CONTENT */}
         <div className="lg:col-span-2 space-y-4">
-          <input
+          <Input
             placeholder="Blog title"
-            className="w-full border rounded-xl p-4 text-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
             value={form.title}
             onChange={(e) =>
               setForm({ ...form, title: e.target.value })
             }
+            className="text-lg h-12"
           />
 
           <textarea
-            placeholder="Short excerpt (shown on blog cards & SEO)"
-            className="w-full border rounded-xl p-4 h-28 resize-none focus:outline-none focus:ring-2 focus:ring-orange-500"
+            placeholder="Short excerpt (SEO + cards)"
+            className="w-full border rounded-lg p-4 h-28 resize-none bg-background"
             value={form.excerpt}
             onChange={(e) =>
               setForm({ ...form, excerpt: e.target.value })
             }
           />
 
-          <div className="border rounded-xl overflow-hidden bg-white">
-            <AdminEditor
-              value={form.content}
-              onChange={(html) =>
-                setForm({ ...form, content: html })
-              }
-            />
-          </div>
+          <Card>
+            <CardContent className="p-0">
+              <AdminEditor
+                value={form.content}
+                onChange={(html) =>
+                  setForm({ ...form, content: html })
+                }
+              />
+            </CardContent>
+          </Card>
         </div>
 
-        {/* RIGHT SIDE – SETTINGS */}
+        {/* SETTINGS */}
         <div className="space-y-4">
-          <div className="border rounded-xl p-4 bg-white space-y-4">
-            <h3 className="font-semibold text-lg">Blog Settings</h3>
+          <Card>
+            <CardHeader>
+              <CardTitle>Blog Settings</CardTitle>
+            </CardHeader>
 
-            {/* IMAGE UPLOAD CARD */}
-            <div
-              onClick={() => uploadRef.current?.click()}
-              className="cursor-pointer border-2 border-dashed rounded-xl p-4 text-center hover:border-orange-500 transition"
-            >
-              {!imagePreview ? (
-                <p className="text-gray-500">
-                  Click to upload featured image<br />
-                  <span className="text-sm">(Max 2MB)</span>
-                </p>
-              ) : (
-                <img
-                  src={imagePreview}
-                  alt="Preview"
-                  className="w-full h-48 object-cover rounded-lg"
-                />
-              )}
-            </div>
+            <CardContent className="space-y-4">
+              {/* IMAGE */}
+              <div
+                onClick={() => uploadRef.current?.click()}
+                className="cursor-pointer border-2 border-dashed rounded-lg p-4 text-center hover:border-primary transition"
+              >
+                {!imagePreview ? (
+                  <div className="space-y-2 text-muted-foreground">
+                    <ImagePlus className="mx-auto" />
+                    <p>Upload featured image</p>
+                    <p className="text-xs">Max 2MB</p>
+                  </div>
+                ) : (
+                  <img
+                    src={imagePreview}
+                    alt="Preview"
+                    className="w-full h-40 object-cover rounded-md"
+                  />
+                )}
+              </div>
 
-            <input
-              ref={uploadRef}
-              type="file"
-              accept="image/*"
-              hidden
-              onChange={handleImage}
-            />
+              <input
+                ref={uploadRef}
+                type="file"
+                accept="image/*"
+                hidden
+                onChange={handleImage}
+              />
 
-            <input
-              placeholder="Read time (e.g. 5 min read)"
-              className="w-full border rounded-lg p-2"
-              value={form.readTime}
-              onChange={(e) =>
-                setForm({ ...form, readTime: e.target.value })
-              }
-            />
+              <Input
+                placeholder="Read time (e.g. 5 min read)"
+                value={form.readTime}
+                onChange={(e) =>
+                  setForm({ ...form, readTime: e.target.value })
+                }
+              />
 
-            <button
-              onClick={() => setPreviewMode(!previewMode)}
-              className="w-full border rounded-lg py-2 hover:bg-gray-50"
-            >
-              {previewMode ? "Hide Preview" : "Preview Blog"}
-            </button>
-          </div>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => setPreviewMode(!previewMode)}
+              >
+                <Eye className="w-4 h-4 mr-2" />
+                {previewMode ? "Hide Preview" : "Preview Blog"}
+              </Button>
+            </CardContent>
+          </Card>
         </div>
       </div>
 
-      {/* PREVIEW MODE */}
+      {/* PREVIEW */}
       {previewMode && (
-        <div className="mt-10 border rounded-2xl bg-gray-50 p-6">
-          {imagePreview && (
-            <img
-              src={imagePreview}
-              className="w-full h-72 object-cover rounded-xl mb-4"
-              alt="Preview"
+        <Card>
+          <CardContent className="p-6">
+            {imagePreview && (
+              <img
+                src={imagePreview}
+                className="w-full h-72 object-cover rounded-xl mb-4"
+                alt="Preview"
+              />
+            )}
+            <h2 className="text-3xl font-bold mb-2">{form.title}</h2>
+            <Badge variant="secondary" className="mb-4">
+              {form.readTime}
+            </Badge>
+            <p className="text-muted-foreground mb-4">
+              {form.excerpt}
+            </p>
+            <div
+              className="prose dark:prose-invert max-w-none"
+              dangerouslySetInnerHTML={{ __html: form.content }}
             />
-          )}
-          <h2 className="text-3xl font-bold mb-2">{form.title}</h2>
-          <p className="text-gray-600 mb-4">{form.excerpt}</p>
-          <div
-            className="prose max-w-none"
-            dangerouslySetInnerHTML={{ __html: form.content }}
-          />
-        </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* ACTION BAR */}
-      <div className="mt-10 flex justify-end gap-4 sticky bottom-0 bg-white py-4">
-        <button
+      <div className="sticky bottom-0 bg-background border-t py-4 flex justify-end gap-4">
+        <Button
+          variant="outline"
           disabled={loading}
           onClick={() => submit("draft")}
-          className="border px-6 py-2 rounded-lg"
         >
           Save Draft
-        </button>
+        </Button>
 
-        <button
+        <Button
           disabled={loading}
           onClick={() => submit("published")}
-          className="bg-orange-600 text-white px-6 py-2 rounded-lg"
         >
           {loading ? "Publishing..." : "Publish Blog"}
-        </button>
+        </Button>
       </div>
     </div>
   );

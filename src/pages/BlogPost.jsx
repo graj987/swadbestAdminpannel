@@ -1,123 +1,185 @@
-import React from "react";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import api from "../api";
 
-const AdminBlogs = () => {
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/Components/ui/card";
+
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/Components/ui/table";
+
+import { Badge } from "@/Components/ui/badge";
+import { Button } from "@/Components/ui/button";
+import { Input } from "@/Components/ui/input";
+import { Separator } from "@/Components/ui/separator";
+
+import {
+  Plus,
+  Search,
+  Pencil,
+  Trash2,
+  Eye,
+} from "lucide-react";
+
+export default function AdminBlogs() {
   const [blogs, setBlogs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [query, setQuery] = useState("");
 
+  /* ---------------- LOAD BLOGS ---------------- */
   useEffect(() => {
     api
       .get("/api/admin/blogs/fetch")
-      .then(res => setBlogs(res.data))
+      .then((res) => setBlogs(res.data || []))
       .finally(() => setLoading(false));
   }, []);
 
+  /* ---------------- ACTIONS ---------------- */
   const togglePublish = async (id) => {
     await api.patch(`/api/admin/blogs/${id}/publish`);
-    setBlogs(prev =>
-      prev.map(b =>
+    setBlogs((prev) =>
+      prev.map((b) =>
         b._id === id ? { ...b, isPublished: !b.isPublished } : b
       )
     );
   };
 
   const deleteBlog = async (id) => {
-    const ok = window.confirm("Delete this blog permanently?");
-    if (!ok) return;
-
+    if (!confirm("Delete this blog permanently?")) return;
     await api.delete(`/api/admin/blogs/${id}`);
-    setBlogs(prev => prev.filter(b => b._id !== id));
+    setBlogs((prev) => prev.filter((b) => b._id !== id));
   };
 
+  /* ---------------- FILTER ---------------- */
+  const filteredBlogs = blogs.filter((b) =>
+    query
+      ? b.title.toLowerCase().includes(query.toLowerCase())
+      : true
+  );
+
+  /* ---------------- LOADING ---------------- */
   if (loading) {
     return (
-      <div className="p-6 text-center text-gray-500">
+      <div className="p-6 text-center text-muted-foreground">
         Loading blogs…
       </div>
     );
   }
 
+  /* ================= RENDER ================= */
   return (
-    <div className="max-w-6xl mx-auto p-6">
+    <div className="p-4 lg:p-8 space-y-6">
       {/* HEADER */}
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Blogs</h1>
-        <Link
-          to="/admin/blogs/new"
-          className="bg-orange-600 text-white px-4 py-2 rounded-lg"
-        >
-          + Add Blog
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold">Blogs</h1>
+          <p className="text-muted-foreground text-sm">
+            Manage blog posts and publishing status
+          </p>
+        </div>
+
+        <Link to="/admin/blogs/new">
+          <Button>
+            <Plus className="w-4 h-4 mr-2" />
+            Add Blog
+          </Button>
         </Link>
       </div>
 
-      {/* LIST */}
-      <div className="space-y-4">
-        {blogs.map(blog => (
-          <div
-            key={blog._id}
-            className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border rounded-xl p-4 bg-white"
-          >
-            {/* LEFT */}
-            <div>
-              <p className="font-semibold text-lg">
-                {blog.title}
-              </p>
+      {/* TABLE CARD */}
+      <Card>
+        <CardHeader className="flex flex-row justify-between items-center">
+          <CardTitle>All Blogs</CardTitle>
 
-              <div className="flex items-center gap-2 mt-1">
-                <span
-                  className={`text-xs px-2 py-1 rounded-full ${
-                    blog.isPublished
-                      ? "bg-green-100 text-green-700"
-                      : "bg-gray-100 text-gray-600"
-                  }`}
-                >
-                  {blog.isPublished ? "Published" : "Draft"}
-                </span>
-
-                {blog.readTime && (
-                  <span className="text-xs text-gray-400">
-                    • {blog.readTime}
-                  </span>
-                )}
-              </div>
-            </div>
-
-            {/* ACTIONS */}
-            <div className="flex gap-2 flex-wrap">
-              <button
-                onClick={() => togglePublish(blog._id)}
-                className="px-3 py-1 border rounded-lg text-sm"
-              >
-                {blog.isPublished ? "Unpublish" : "Publish"}
-              </button>
-
-              <Link
-                to={`/admin/blogs/edit/${blog._id}`}
-                className="px-3 py-1 border rounded-lg text-sm"
-              >
-                Edit
-              </Link>
-
-              <button
-                onClick={() => deleteBlog(blog._id)}
-                className="px-3 py-1 border rounded-lg text-sm text-red-600"
-              >
-                Delete
-              </button>
-            </div>
+          <div className="relative w-64">
+            <Search className="w-4 h-4 absolute left-3 top-3 text-muted-foreground" />
+            <Input
+              placeholder="Search blog title"
+              className="pl-9"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
           </div>
-        ))}
+        </CardHeader>
 
-        {blogs.length === 0 && (
-          <p className="text-center text-gray-500">
-            No blogs found.
-          </p>
-        )}
-      </div>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Title</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Read Time</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+
+            <TableBody>
+              {filteredBlogs.map((blog) => (
+                <TableRow key={blog._id}>
+                  <TableCell className="font-medium">
+                    {blog.title}
+                  </TableCell>
+
+                  <TableCell>
+                    <Badge
+                      variant={blog.isPublished ? "default" : "secondary"}
+                    >
+                      {blog.isPublished ? "Published" : "Draft"}
+                    </Badge>
+                  </TableCell>
+
+                  <TableCell className="text-muted-foreground">
+                    {blog.readTime || "-"}
+                  </TableCell>
+
+                  <TableCell className="text-right space-x-1">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => togglePublish(blog._id)}
+                    >
+                      {blog.isPublished ? "Unpublish" : "Publish"}
+                    </Button>
+
+                    <Link to={`/admin/blogs/edit/${blog._id}`}>
+                      <Button size="sm" variant="ghost">
+                        <Pencil className="w-4 h-4" />
+                      </Button>
+                    </Link>
+
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => deleteBlog(blog._id)}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+
+          {filteredBlogs.length === 0 && (
+            <>
+              <Separator className="my-6" />
+              <p className="text-center text-muted-foreground">
+                No blogs found.
+              </p>
+            </>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
-};
-
-export default AdminBlogs;
+}

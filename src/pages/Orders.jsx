@@ -1,19 +1,54 @@
-import React from "react";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import api from "../api";
-import { Search, Truck, Barcode, FileText, PackageX } from "lucide-react";
+
+import {
+  Search,
+  Eye,
+  Truck,
+  FileText,
+  Barcode,
+  PackageX,
+} from "lucide-react";
+
+import { Card, CardContent, CardHeader, CardTitle } from "@/Components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/Components/ui/table";
+import { Badge } from "@/Components/ui/badge";
+import { Button } from "@/Components/ui/button";
+import { Input } from "@/Components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/Components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/Components/ui/select";
+import { Separator } from "@/Components/ui/separator";
+
+/* ---------------- AUTH ---------------- */
 
 const auth = () => ({
   headers: { Authorization: `Bearer ${localStorage.getItem("adminToken")}` },
 });
 
-const Badge = ({ text, cls }) => (
-  <span className={`px-2 py-0.5 rounded text-xs font-medium ${cls}`}>
-    {text}
-  </span>
-);
+/* ---------------- HELPERS ---------------- */
 
-const ORDER = {
+const price = (v) => `₹${Number(v || 0).toLocaleString("en-IN")}`;
+
+const statusColor = {
   placed: "bg-gray-100 text-gray-700",
   preparing: "bg-blue-100 text-blue-700",
   shipped: "bg-orange-100 text-orange-700",
@@ -21,36 +56,26 @@ const ORDER = {
   cancelled: "bg-red-100 text-red-700",
 };
 
-const PAYMENT = {
-  pending: "bg-gray-100 text-gray-600",
-  initiated: "bg-yellow-100 text-yellow-700",
-  paid: "bg-green-100 text-green-700",
-  failed: "bg-red-100 text-red-700",
-};
-
-const SHIPPING = {
-  created: "bg-blue-100 text-blue-700",
-  shipped: "bg-orange-100 text-orange-700",
-  in_transit: "bg-purple-100 text-purple-700",
-  out_for_delivery: "bg-indigo-100 text-indigo-700",
-  delivered: "bg-green-100 text-green-700",
-  cancelled: "bg-red-100 text-red-700",
-  rto: "bg-red-200 text-red-800",
-};
-
 export default function AdminOrders() {
   const [orders, setOrders] = useState([]);
   const [query, setQuery] = useState("");
-  const [selected, setSelected] = useState([]);
+  const [statusFilter, setStatusFilter] = useState("all");
+
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+
+  /* ---------------- LOAD ---------------- */
 
   const loadOrders = async () => {
     const res = await api.get("/api/admin/orders", auth());
-    setOrders(res.data.orders || res.data);
+    setOrders(res.data.orders || res.data || []);
   };
 
   useEffect(() => {
     loadOrders();
   }, []);
+
+  /* ---------------- SHIPROCKET ACTIONS ---------------- */
 
   const generateAWB = async (orderId) => {
     await api.post(`/api/shiprocket/order/${orderId}/awb`, {}, auth());
@@ -72,143 +97,185 @@ export default function AdminOrders() {
     window.open(`/admin/track/${awb}`, "_blank");
   };
 
-  const toggleSelect = (id) => {
-    if (!id) return;
-    setSelected((p) =>
-      p.includes(id) ? p.filter((x) => x !== id) : [...p, id]
-    );
-  };
+  /* ---------------- FILTER ---------------- */
 
-  const generateManifest = async () => {
-    if (!selected.length) return;
-    const res = await api.post(
-      "/api/shiprocket/manifest",
-      { shipmentIds: selected },
-      auth()
-    );
-    if (res.data?.manifestUrl) window.open(res.data.manifestUrl, "_blank");
-    setSelected([]);
-  };
+  const filteredOrders = orders.filter((o) => {
+    const q = query.toLowerCase();
 
-  const filtered = orders.filter((o) =>
-    query ? o._id.includes(query) : true
-  );
+    const matchSearch =
+      o._id.toLowerCase().includes(q) ||
+      o.user?.name?.toLowerCase().includes(q);
+
+    const matchStatus =
+      statusFilter === "all" || o.orderStatus === statusFilter;
+
+    return matchSearch && matchStatus;
+  });
+
+  /* ================= RENDER ================= */
 
   return (
-    <div className="p-6 space-y-4">
-      <div className="flex justify-between items-center">
-        <h1 className="text-xl font-semibold">Orders</h1>
-        <div className="flex items-center gap-2 border px-3 py-2 rounded">
-          <Search size={14} />
-          <input
-            className="outline-none text-sm"
-            placeholder="Search order id"
-            onChange={(e) => setQuery(e.target.value)}
-          />
-        </div>
-      </div>
+    <div className="p-4 lg:p-8 space-y-6">
+      <h1 className="text-3xl font-bold">Manage Orders</h1>
 
-      {selected.length > 0 && (
-        <button
-          onClick={generateManifest}
-          className="bg-black text-white px-4 py-2 rounded text-sm"
-        >
-          Generate Manifest ({selected.length})
-        </button>
-      )}
+      <Card>
+        <CardHeader className="flex flex-row justify-between items-center">
+          <CardTitle>Orders</CardTitle>
 
-      <div className="grid gap-3">
-        {filtered.map((o) => {
-          const paid = o.paymentStatus === "paid";
-          const shipmentId = o.shipping?.shipmentId;
-          const awb = o.shipping?.awb;
-          const s = o.shipping?.status;
-
-          const canCancel =
-            awb && !["in_transit", "out_for_delivery", "delivered"].includes(s);
-
-          return (
-            <div
-              key={o._id}
-              className="border rounded-lg p-4 flex justify-between"
-            >
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    disabled={!shipmentId}
-                    checked={selected.includes(shipmentId)}
-                    onChange={() => toggleSelect(shipmentId)}
-                  />
-                  <span className="text-sm font-medium">
-                    {o._id.slice(-8)}
-                  </span>
-                </div>
-
-                <div className="text-sm">₹{o.totalAmount}</div>
-
-                <div className="flex gap-1 flex-wrap">
-                  <Badge text={o.orderStatus} cls={ORDER[o.orderStatus]} />
-                  <Badge text={o.paymentStatus} cls={PAYMENT[o.paymentStatus]} />
-                  {s && <Badge text={s} cls={SHIPPING[s]} />}
-                </div>
-
-                {awb && <div className="text-xs text-gray-600">AWB: {awb}</div>}
-              </div>
-
-              <div className="flex flex-col gap-2 text-sm">
-                {shipmentId && !awb && (
-                  <button
-                    disabled={!paid}
-                    onClick={() => generateAWB(o._id)}
-                    className={`px-3 py-1 rounded flex gap-1 ${
-                      paid
-                        ? "bg-orange-100 text-orange-700"
-                        : "bg-gray-100 text-gray-400 cursor-not-allowed"
-                    }`}
-                  >
-                    <Barcode size={14} /> Generate AWB
-                  </button>
-                )}
-
-                {awb && (
-                  <>
-                    <button
-                      onClick={() => trackShipment(awb)}
-                      className="bg-green-100 text-green-700 px-3 py-1 rounded flex gap-1"
-                    >
-                      <Truck size={14} /> Track
-                    </button>
-
-                    <button
-                      onClick={() => generateLabel(shipmentId)}
-                      className="bg-blue-100 text-blue-700 px-3 py-1 rounded flex gap-1"
-                    >
-                      <FileText size={14} /> Print Label
-                    </button>
-
-                    <button
-                      disabled={!canCancel}
-                      onClick={() => cancelShipment(o._id)}
-                      className={`px-3 py-1 rounded flex gap-1 ${
-                        canCancel
-                          ? "bg-red-100 text-red-700"
-                          : "bg-gray-100 text-gray-400 cursor-not-allowed"
-                      }`}
-                    >
-                      <PackageX size={14} /> Cancel / RTO
-                    </button>
-
-                    <p className="text-xs text-gray-500">
-                      Parcel packed → hand over to courier
-                    </p>
-                  </>
-                )}
-              </div>
+          <div className="flex gap-2">
+            <div className="relative">
+              <Search className="w-4 h-4 absolute left-3 top-3 text-gray-400" />
+              <Input
+                className="pl-9"
+                placeholder="Search order or customer"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
             </div>
-          );
-        })}
-      </div>
+
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-40">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="placed">Placed</SelectItem>
+                <SelectItem value="preparing">Preparing</SelectItem>
+                <SelectItem value="shipped">Shipped</SelectItem>
+                <SelectItem value="delivered">Delivered</SelectItem>
+                <SelectItem value="cancelled">Cancelled</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardHeader>
+
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Order</TableHead>
+                <TableHead>Customer</TableHead>
+                <TableHead>Total</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+
+            <TableBody>
+              {filteredOrders.map((o) => {
+                const shipmentId = o.shipping?.shipmentId;
+                const awb = o.shipping?.awb;
+                const shipStatus = o.shipping?.status;
+
+                const canCancel =
+                  awb &&
+                  !["in_transit", "out_for_delivery", "delivered"].includes(
+                    shipStatus
+                  );
+
+                return (
+                  <TableRow key={o._id}>
+                    <TableCell className="font-medium">
+                      {o.orderNumber || o._id.slice(-8)}
+                    </TableCell>
+
+                    <TableCell>{o.user?.name || "User"}</TableCell>
+
+                    <TableCell>{price(o.totalAmount)}</TableCell>
+
+                    <TableCell>
+                      <Badge className={statusColor[o.orderStatus]}>
+                        {o.orderStatus}
+                      </Badge>
+                    </TableCell>
+
+                    <TableCell className="text-right space-x-1">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          setSelectedOrder(o);
+                          setDetailsOpen(true);
+                        }}
+                      >
+                        <Eye className="w-4 h-4" />
+                      </Button>
+
+                      {shipmentId && !awb && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => generateAWB(o._id)}
+                        >
+                          <Barcode className="w-4 h-4" />
+                        </Button>
+                      )}
+
+                      {awb && (
+                        <>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => trackShipment(awb)}
+                          >
+                            <Truck className="w-4 h-4" />
+                          </Button>
+
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => generateLabel(shipmentId)}
+                          >
+                            <FileText className="w-4 h-4" />
+                          </Button>
+
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            disabled={!canCancel}
+                            onClick={() => cancelShipment(o._id)}
+                          >
+                            <PackageX className="w-4 h-4" />
+                          </Button>
+                        </>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      {/* ================= DETAILS DIALOG ================= */}
+      <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Order Details</DialogTitle>
+            <DialogDescription>
+              Complete information about this order
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedOrder && (
+            <div className="space-y-2 text-sm">
+              <p><b>Order:</b> {selectedOrder.orderNumber}</p>
+              <p><b>Customer:</b> {selectedOrder.user?.name}</p>
+              <p><b>Email:</b> {selectedOrder.user?.email}</p>
+
+              <Separator />
+
+              <p><b>Amount:</b> {price(selectedOrder.totalAmount)}</p>
+              <p><b>Status:</b> {selectedOrder.orderStatus}</p>
+
+              {selectedOrder.shipping?.awb && (
+                <p><b>AWB:</b> {selectedOrder.shipping.awb}</p>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

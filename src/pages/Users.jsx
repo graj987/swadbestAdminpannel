@@ -1,20 +1,49 @@
 // src/pages/Users.jsx
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import api from "../api";
 import { useNavigate } from "react-router-dom";
 
+import { Search, MoreVertical, UserPlus } from "lucide-react";
+
+import { Card, CardContent, CardHeader, CardTitle } from "@/Components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/Components/ui/table";
+import { Badge } from "@/Components/ui/badge";
+import { Button } from "@/Components/ui/button";
+import { Input } from "@/Components/ui/input";
+
+/* ---------------- HELPERS ---------------- */
+
+const avatarColors = [
+  "bg-gradient-to-br from-blue-500 to-blue-600",
+  "bg-gradient-to-br from-purple-500 to-purple-600",
+  "bg-gradient-to-br from-pink-500 to-pink-600",
+  "bg-gradient-to-br from-green-500 to-green-600",
+  "bg-gradient-to-br from-orange-500 to-orange-600",
+  "bg-gradient-to-br from-indigo-500 to-indigo-600",
+];
+
 export default function Users() {
+  const navigate = useNavigate();
+
   const [users, setUsers] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const navigate = useNavigate();
 
   const authHeader = () => {
     const token = localStorage.getItem("adminToken");
     return token ? { Authorization: `Bearer ${token}` } : {};
   };
 
-  // ============= FETCH USERS =============
+  /* ---------------- FETCH USERS ---------------- */
+
   useEffect(() => {
     let active = true;
 
@@ -36,7 +65,7 @@ export default function Users() {
       } catch (err) {
         if (err?.response?.status === 401) {
           localStorage.removeItem("adminToken");
-          setError("Session expired. Redirecting...");
+          setError("Session expired. Redirecting…");
           setTimeout(() => navigate("/admin/login"), 1000);
           return;
         }
@@ -52,72 +81,209 @@ export default function Users() {
     return () => (active = false);
   }, [navigate]);
 
-  // ============= LOADING UI =============
+  /* ---------------- FILTER ---------------- */
+
+  const filteredUsers = users.filter(
+    (u) =>
+      u.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      u.email?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  /* ---------------- STATS ---------------- */
+
+  const totalUsers = users.length;
+  const verifiedUsers = users.filter((u) => u.isVerified).length;
+  const codEligible = users.filter((u) => u.codEligible).length;
+  const rtoRisk = users.filter((u) => u.rtoCount > 2).length;
+
+  /* ---------------- LOADING ---------------- */
+
   if (loading)
     return (
-      <div className="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {[...Array(6)].map((_, i) => (
-          <div
-            key={i}
-            className="bg-white p-4 rounded-xl shadow border animate-pulse"
-          >
-            <div className="h-5 bg-gray-200 w-1/2 rounded mb-3"></div>
-            <div className="h-4 bg-gray-200 w-3/4 rounded mb-2"></div>
-            <div className="h-4 bg-gray-200 w-2/5 rounded"></div>
-          </div>
+      <div className="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {[...Array(4)].map((_, i) => (
+          <Card key={i} className="animate-pulse">
+            <CardContent className="p-6 space-y-3">
+              <div className="h-4 bg-muted rounded w-1/2" />
+              <div className="h-8 bg-muted rounded w-1/3" />
+            </CardContent>
+          </Card>
         ))}
       </div>
     );
 
-  // ============= ERROR UI =============
   if (error)
     return (
-      <p className="text-center p-4 text-red-600 font-medium">{error}</p>
+      <p className="text-center p-6 text-destructive font-medium">
+        {error}
+      </p>
     );
 
-  // ============= MAIN RENDER =============
+  /* ================= RENDER ================= */
+
   return (
-    <div className="p-6">
-      <h1 className="text-3xl font-bold mb-6">Users</h1>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {users.length === 0 && (
-          <p className="text-gray-500 text-center col-span-full">
-            No users found.
+    <div className="p-4 lg:p-8 space-y-6">
+      {/* HEADER */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold">Users</h1>
+          <p className="text-muted-foreground mt-1">
+            Manage and monitor user accounts
           </p>
-        )}
+        </div>
+      </div>
 
-        {users.map((user) => (
-          <div
-            key={user._id}
-            className="bg-white p-5 rounded-xl shadow border hover:shadow-lg transition"
-          >
-            <div className="flex items-center gap-4 mb-3">
-              <div className="w-12 h-12 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center font-semibold text-lg">
-                {user.name ? user.name[0].toUpperCase() : "U"}
-              </div>
+      {/* STATS */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="p-6">
+            <p className="text-sm text-muted-foreground">Total Users</p>
+            <p className="text-2xl font-bold mt-1">{totalUsers}</p>
+          </CardContent>
+        </Card>
 
-              <div>
-                <h2 className="font-semibold text-lg">
-                  {user.name || "Unknown User"}
-                </h2>
-                <p className="text-sm text-gray-500">{user.email}</p>
-              </div>
-            </div>
+        <Card>
+          <CardContent className="p-6">
+            <p className="text-sm text-muted-foreground">Verified</p>
+            <p className="text-2xl font-bold mt-1">{verifiedUsers}</p>
+          </CardContent>
+        </Card>
 
-            <div className="mt-4 text-sm text-gray-700 space-y-1">
-              <p>
-                <span className="font-medium">Phone:</span>{" "}
-                {user.phone || "N/A"}
-              </p>
-              <p>
-                <span className="font-medium">Registered:</span>{" "}
-                {new Date(user.createdAt).toLocaleDateString()}
-              </p>
+        <Card>
+          <CardContent className="p-6">
+            <p className="text-sm text-muted-foreground">COD Eligible</p>
+            <p className="text-2xl font-bold mt-1">{codEligible}</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <p className="text-sm text-muted-foreground">High RTO Risk</p>
+            <p className="text-2xl font-bold mt-1">{rtoRisk}</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* USERS TABLE */}
+      <Card>
+        <CardHeader>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <CardTitle>All Users</CardTitle>
+
+            <div className="relative sm:w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Search users…"
+                className="pl-10"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
             </div>
           </div>
-        ))}
-      </div>
+        </CardHeader>
+
+        <CardContent>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>User</TableHead>
+                  <TableHead>Verification</TableHead>
+                  <TableHead>COD</TableHead>
+                  <TableHead>RTO</TableHead>
+                  <TableHead>Joined</TableHead>
+                  <TableHead />
+                </TableRow>
+              </TableHeader>
+
+              <TableBody>
+                {filteredUsers.map((user, index) => (
+                  <TableRow key={user._id}>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold ${
+                            avatarColors[index % avatarColors.length]
+                          }`}
+                        >
+                          {user.name?.[0]?.toUpperCase() || "U"}
+                        </div>
+
+                        <div>
+                          <p className="font-medium">{user.name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {user.email}
+                          </p>
+                        </div>
+                      </div>
+                    </TableCell>
+
+                    <TableCell>
+                      <Badge
+                        variant="outline"
+                        className={
+                          user.isVerified
+                            ? "bg-green-100 text-green-700 border-green-200"
+                            : "bg-yellow-100 text-yellow-700 border-yellow-200"
+                        }
+                      >
+                        {user.isVerified ? "Verified" : "Unverified"}
+                      </Badge>
+                    </TableCell>
+
+                    <TableCell>
+                      <Badge
+                        variant="outline"
+                        className={
+                          user.codEligible
+                            ? "bg-blue-100 text-blue-700 border-blue-200"
+                            : "bg-gray-100 text-gray-700 border-gray-200"
+                        }
+                      >
+                        {user.codEligible ? "Allowed" : "Blocked"}
+                      </Badge>
+                    </TableCell>
+
+                    <TableCell>
+                      <Badge
+                        variant="outline"
+                        className={
+                          user.rtoCount > 2
+                            ? "bg-red-100 text-red-700 border-red-200"
+                            : "bg-gray-100 text-gray-700 border-gray-200"
+                        }
+                      >
+                        {user.rtoCount}
+                      </Badge>
+                    </TableCell>
+
+                    <TableCell className="text-muted-foreground">
+                      {new Date(user.createdAt).toLocaleDateString()}
+                    </TableCell>
+
+                    <TableCell>
+                      <Button variant="ghost" size="sm">
+                        <MoreVertical className="w-4 h-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+
+                {filteredUsers.length === 0 && (
+                  <TableRow>
+                    <TableCell
+                      colSpan={6}
+                      className="text-center text-muted-foreground py-8"
+                    >
+                      No users found.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

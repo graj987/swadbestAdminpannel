@@ -1,11 +1,18 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import api from "../api";
 import { useAuth } from "../context/useAuth";
 import imageCompression from "browser-image-compression";
 
+import { Card, CardContent, CardHeader, CardTitle } from "@/Components/ui/card";
+import { Label } from "@/Components/ui/label";
+import { Input } from "@/Components/ui/input";
+import { Button } from "@/Components/ui/button";
+import { Separator } from "@/Components/ui/separator";
+
 export default function Profile() {
   const { admin, setAdmin } = useAuth();
 
+  const fileRef = useRef(null);
   const [saving, setSaving] = useState(false);
 
   const [preview, setPreview] = useState("");
@@ -18,7 +25,7 @@ export default function Profile() {
     password: "",
   });
 
-  // Load admin data
+  /* ---------------- LOAD ADMIN ---------------- */
   useEffect(() => {
     if (admin) {
       setForm({
@@ -31,15 +38,14 @@ export default function Profile() {
     }
   }, [admin]);
 
+  /* ---------------- HANDLERS ---------------- */
   const handleChange = (e) =>
-    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+    setForm((p) => ({ ...p, [e.target.name]: e.target.value }));
 
-  /** Handle avatar image selection */
   const handleAvatar = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // compress before upload
     const compressed = await imageCompression(file, {
       maxSizeMB: 1,
       maxWidthOrHeight: 800,
@@ -49,7 +55,6 @@ export default function Profile() {
     setPreview(URL.createObjectURL(compressed));
   };
 
-  /** Upload avatar to Cloudinary */
   const uploadAvatar = async () => {
     const fd = new FormData();
     fd.append("image", avatarFile);
@@ -58,7 +63,7 @@ export default function Profile() {
     return res.data.secure_url;
   };
 
-  /** Save updated profile */
+  /* ---------------- SAVE PROFILE ---------------- */
   const handleSave = async (e) => {
     e.preventDefault();
     setSaving(true);
@@ -75,13 +80,10 @@ export default function Profile() {
         avatar: avatarUrl,
       });
 
-      
-
       setAdmin(res.data.admin);
+      alert("Profile updated successfully");
     } catch (err) {
-      console.error(err);
       alert(err.response?.data?.message || "Failed to update profile");
-     
     } finally {
       setSaving(false);
     }
@@ -89,88 +91,112 @@ export default function Profile() {
 
   if (!admin) return <p className="p-6">Loading...</p>;
 
+  /* ================= RENDER ================= */
+
   return (
-    <div className="max-w-3xl mx-auto p-6">
-
-      <h1 className="text-3xl font-bold mb-6">Profile Settings</h1>
-
-      <div className="bg-white p-6 rounded-xl shadow border">
-
-        {/* Avatar Section */}
-        <div className="flex items-center gap-6">
-          <img
-            src={preview}
-            alt="avatar"
-            className="w-24 h-24 rounded-full object-cover border"
-          />
-
-          <div>
-            <label className="cursor-pointer text-blue-600 font-medium">
-              Change Avatar
-              <input type="file" className="hidden" accept="image/*" onChange={handleAvatar} />
-            </label>
-            <p className="text-xs text-gray-500 mt-1">
-              JPG, PNG (max 1 MB)
-            </p>
-          </div>
-        </div>
-
-        {/* FORM */}
-        <form onSubmit={handleSave} className="mt-6 space-y-5">
-          <div>
-            <label className="text-sm font-medium">Full Name</label>
-            <input
-              className="w-full border p-3 rounded-lg mt-1"
-              name="name"
-              value={form.name}
-              onChange={handleChange}
-              placeholder="Admin Name"
-            />
-          </div>
-
-          <div>
-            <label className="text-sm font-medium">Email</label>
-            <input
-              className="w-full border p-3 rounded-lg mt-1"
-              name="email"
-              type="email"
-              value={form.email}
-              onChange={handleChange}
-              placeholder="admin@example.com"
-            />
-          </div>
-
-          <div>
-            <label className="text-sm font-medium">Phone</label>
-            <input
-              className="w-full border p-3 rounded-lg mt-1"
-              name="phone"
-              value={form.phone}
-              onChange={handleChange}
-              placeholder="Phone Number"
-            />
-          </div>
-
-          <div>
-            <label className="text-sm font-medium">New Password</label>
-            <input
-              className="w-full border p-3 rounded-lg mt-1"
-              type="password"
-              name="password"
-              value={form.password}
-              onChange={handleChange}
-              placeholder="Leave empty to keep old password"
-            />
-          </div>
-
-          <button
-            disabled={saving}
-            className="px-5 py-3 bg-blue-600 text-white rounded-lg w-full hover:bg-blue-700"
-          >
-            {saving ? "Saving..." : "Update Profile"}
-          </button>
-        </form>
+    <div className="p-4 lg:p-8 max-w-4xl mx-auto space-y-6">
+      {/* HEADER */}
+      <div>
+        <h1 className="text-3xl font-bold">Profile</h1>
+        <p className="text-gray-500 mt-1">
+          Update your account profile information
+        </p>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Profile Information</CardTitle>
+          <p className="text-sm text-gray-500">
+            Manage your personal details
+          </p>
+        </CardHeader>
+
+        <CardContent className="space-y-6">
+          {/* AVATAR */}
+          <div className="flex items-center gap-6">
+            <div className="w-24 h-24 rounded-full overflow-hidden border bg-gray-100">
+              <img
+                src={preview}
+                alt="Avatar"
+                className="w-full h-full object-cover"
+              />
+            </div>
+
+            <div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => fileRef.current.click()}
+              >
+                Change Photo
+              </Button>
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleAvatar}
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                JPG or PNG (max 1MB)
+              </p>
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* FORM */}
+          <form onSubmit={handleSave} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Full Name</Label>
+                <Input
+                  name="name"
+                  value={form.name}
+                  onChange={handleChange}
+                  placeholder="Admin Name"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Email</Label>
+                <Input
+                  name="email"
+                  type="email"
+                  value={form.email}
+                  onChange={handleChange}
+                  placeholder="admin@example.com"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Phone</Label>
+              <Input
+                name="phone"
+                value={form.phone}
+                onChange={handleChange}
+                placeholder="Phone Number"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>New Password</Label>
+              <Input
+                type="password"
+                name="password"
+                value={form.password}
+                onChange={handleChange}
+                placeholder="Leave blank to keep current password"
+              />
+            </div>
+
+            <Button disabled={saving} className="w-full">
+              {saving ? "Saving..." : "Save Changes"}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   );
 }

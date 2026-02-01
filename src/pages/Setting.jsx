@@ -1,7 +1,24 @@
 import React, { useState } from "react";
 import api from "../api";
 
+import { Card, CardContent, CardHeader, CardTitle } from "@/Components/ui/card";
+import { Label } from "@/Components/ui/label";
+import { Input } from "@/Components/ui/input";
+import { Button } from "@/Components/ui/button";
+import { Switch } from "@/Components/ui/switch";
+import { Separator } from "@/Components/ui/separator";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/Components/ui/tabs";
+
+import { Bell, Lock, User, Palette } from "lucide-react";
+import Profile from "./Profile";
+
 export default function Settings() {
+  /* ---------------- STATE ---------------- */
 
   const [general, setGeneral] = useState({
     appName: "SwadBest",
@@ -11,7 +28,7 @@ export default function Settings() {
 
   const [ui, setUi] = useState({
     theme: "light",
-    sidebarCompact: false,
+    compactSidebar: false,
   });
 
   const [passwords, setPasswords] = useState({
@@ -20,174 +37,280 @@ export default function Settings() {
     confirmPassword: "",
   });
 
+  /* ---------------- HANDLERS ---------------- */
+
   const handleGeneralChange = (e) =>
-    setGeneral((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+    setGeneral((p) => ({ ...p, [e.target.name]: e.target.value }));
 
-  const handleUiChange = (e) =>
-    setUi((prev) => ({ ...prev, [e.target.name]: e.target.value }));
-
-  const handleToggle = (section, key) =>
-    section((prev) => ({ ...prev, [key]: !prev[key] }));
+  const handleUiToggle = (key) =>
+    setUi((p) => ({ ...p, [key]: !p[key] }));
 
   const handlePasswordChange = (e) =>
-    setPasswords((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+    setPasswords((p) => ({ ...p, [e.target.name]: e.target.value }));
 
-  const saveGeneral = () => {
+  /* ---------------- ACTIONS ---------------- */
+
+  const saveGeneral = async () => {
+    // Backend hook ready
+    // await api.post("/api/admin/settings/general", general);
     alert("General settings saved");
   };
 
-  const saveUI = () => {
+  const saveUI = async () => {
+    // Backend hook ready
+    // await api.post("/api/admin/settings/ui", ui);
     alert("UI preferences saved");
   };
 
   const updatePassword = async () => {
-    if (passwords.newPassword !== passwords.confirmPassword)
-      return alert("New password and confirm password do not match");
+    if (passwords.newPassword !== passwords.confirmPassword) {
+      return alert("Passwords do not match");
+    }
 
     try {
       await api.post("/api/admin/change-password", passwords);
       alert("Password updated successfully");
-      setPasswords({ oldPassword: "", newPassword: "", confirmPassword: "" });
+      setPasswords({
+        oldPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      });
     } catch (err) {
       alert(err.response?.data?.message || "Failed to update password");
     }
   };
 
+  /* ================= RENDER ================= */
+
   return (
-    <div className="max-w-4xl mx-auto p-6">
+    <div className="p-4 lg:p-8 space-y-6">
+      {/* HEADER */}
+      <div>
+        <h1 className="text-3xl font-bold">Settings</h1>
+        <p className="text-gray-500 mt-1">
+          Manage your application and account preferences
+        </p>
+      </div>
 
-      <h1 className="text-3xl font-bold mb-8">Settings</h1>
+      <Tabs defaultValue="general" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="profile">
+            Profile
+          </TabsTrigger>
+          <TabsTrigger value="general">
+            <User className="w-4 h-4 mr-2" />
+            General
+          </TabsTrigger>
+          <TabsTrigger value="notifications">
+            <Bell className="w-4 h-4 mr-2" />
+            Notifications
+          </TabsTrigger>
+          <TabsTrigger value="security">
+            <Lock className="w-4 h-4 mr-2" />
+            Security
+          </TabsTrigger>
+          <TabsTrigger value="appearance">
+            <Palette className="w-4 h-4 mr-2" />
+            Appearance
+          </TabsTrigger>
+        </TabsList>
 
-      {/* General Settings */}
-      <section className="bg-white p-6 rounded-xl shadow border mb-6">
-        <h2 className="text-xl font-semibold mb-4">General Settings</h2>
+        {/* ================= GENERAL ================= */}
+        <TabsContent value="profile">
+            <Profile />
+          </TabsContent>
+        
+        <TabsContent value="general">
+          <Card>
+            <CardHeader>
+              <CardTitle>General Settings</CardTitle>
+              <p className="text-sm text-gray-500">
+                Application-wide configuration
+              </p>
+            </CardHeader>
 
-        <div className="space-y-4">
-          <div>
-            <label className="text-sm font-medium">Application Name</label>
-            <input
-              className="w-full border p-3 rounded-lg mt-1"
-              name="appName"
-              value={general.appName}
-              onChange={handleGeneralChange}
-            />
-          </div>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label>Application Name</Label>
+                <Input
+                  name="appName"
+                  value={general.appName}
+                  onChange={handleGeneralChange}
+                />
+              </div>
 
-          <div>
-            <label className="text-sm font-medium">Support Email</label>
-            <input
-              className="w-full border p-3 rounded-lg mt-1"
-              name="supportEmail"
-              type="email"
-              value={general.supportEmail}
-              onChange={handleGeneralChange}
-            />
-          </div>
+              <div className="space-y-2">
+                <Label>Support Email</Label>
+                <Input
+                  type="email"
+                  name="supportEmail"
+                  value={general.supportEmail}
+                  onChange={handleGeneralChange}
+                />
+              </div>
 
-          <div className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
-            <span className="text-sm font-medium">Auto Send Order Notification</span>
-            <input
-              type="checkbox"
-              checked={general.autoNotify}
-              onChange={() => handleToggle(setGeneral, "autoNotify")}
-            />
-          </div>
-        </div>
+              <Separator />
 
-        <button
-          onClick={saveGeneral}
-          className="mt-5 px-5 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-        >
-          Save Changes
-        </button>
-      </section>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium">Auto Order Notifications</p>
+                  <p className="text-sm text-gray-500">
+                    Automatically notify users on order updates
+                  </p>
+                </div>
+                <Switch
+                  checked={general.autoNotify}
+                  onCheckedChange={() =>
+                    setGeneral((p) => ({
+                      ...p,
+                      autoNotify: !p.autoNotify,
+                    }))
+                  }
+                />
+              </div>
 
-      {/* UI Preferences */}
-      <section className="bg-white p-6 rounded-xl shadow border mb-6">
-        <h2 className="text-xl font-semibold mb-4">UI Preferences</h2>
+              <Button onClick={saveGeneral}>Save Changes</Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-        <div className="space-y-4">
-          {/* Theme */}
-          <div>
-            <label className="text-sm font-medium">Theme</label>
-            <select
-              name="theme"
-              value={ui.theme}
-              onChange={handleUiChange}
-              className="w-full border p-3 rounded-lg mt-1"
-            >
-              <option value="light">Light Mode</option>
-              <option value="dark">Dark Mode</option>
-            </select>
-          </div>
+        {/* ================= NOTIFICATIONS ================= */}
+        <TabsContent value="notifications">
+          <Card>
+            <CardHeader>
+              <CardTitle>Notification Preferences</CardTitle>
+              <p className="text-sm text-gray-500">
+                Control how notifications are sent
+              </p>
+            </CardHeader>
 
-          {/* Sidebar */}
-          <div className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
-            <span className="text-sm font-medium">Compact Sidebar</span>
+            <CardContent className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium">Email Notifications</p>
+                  <p className="text-sm text-gray-500">
+                    Receive important emails
+                  </p>
+                </div>
+                <Switch defaultChecked />
+              </div>
 
-            <input
-              type="checkbox"
-              checked={ui.sidebarCompact}
-              onChange={() => handleToggle(setUi, "sidebarCompact")}
-            />
-          </div>
-        </div>
+              <Separator />
 
-        <button
-          onClick={saveUI}
-          className="mt-5 px-5 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-        >
-          Save UI Preferences
-        </button>
-      </section>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium">Weekly Summary</p>
+                  <p className="text-sm text-gray-500">
+                    Weekly activity summary
+                  </p>
+                </div>
+                <Switch />
+              </div>
 
-      {/* Security Settings */}
-      <section className="bg-white p-6 rounded-xl shadow border">
-        <h2 className="text-xl font-semibold mb-4">Security Settings</h2>
+              <Button>Save Preferences</Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-        <div className="space-y-4">
+        {/* ================= SECURITY ================= */}
+        <TabsContent value="security">
+          <Card>
+            <CardHeader>
+              <CardTitle>Change Password</CardTitle>
+              <p className="text-sm text-gray-500">
+                Keep your account secure
+              </p>
+            </CardHeader>
 
-          <div>
-            <label className="text-sm font-medium">Old Password</label>
-            <input
-              className="w-full border p-3 rounded-lg mt-1"
-              type="password"
-              name="oldPassword"
-              value={passwords.oldPassword}
-              onChange={handlePasswordChange}
-            />
-          </div>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label>Current Password</Label>
+                <Input
+                  type="password"
+                  name="oldPassword"
+                  value={passwords.oldPassword}
+                  onChange={handlePasswordChange}
+                />
+              </div>
 
-          <div>
-            <label className="text-sm font-medium">New Password</label>
-            <input
-              className="w-full border p-3 rounded-lg mt-1"
-              type="password"
-              name="newPassword"
-              value={passwords.newPassword}
-              onChange={handlePasswordChange}
-            />
-          </div>
+              <div className="space-y-2">
+                <Label>New Password</Label>
+                <Input
+                  type="password"
+                  name="newPassword"
+                  value={passwords.newPassword}
+                  onChange={handlePasswordChange}
+                />
+              </div>
 
-          <div>
-            <label className="text-sm font-medium">Confirm Password</label>
-            <input
-              className="w-full border p-3 rounded-lg mt-1"
-              type="password"
-              name="confirmPassword"
-              value={passwords.confirmPassword}
-              onChange={handlePasswordChange}
-            />
-          </div>
-        </div>
+              <div className="space-y-2">
+                <Label>Confirm Password</Label>
+                <Input
+                  type="password"
+                  name="confirmPassword"
+                  value={passwords.confirmPassword}
+                  onChange={handlePasswordChange}
+                />
+              </div>
 
-        <button
-          onClick={updatePassword}
-          className="mt-5 px-5 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700"
-        >
-          Update Password
-        </button>
-      </section>
+              <Button variant="destructive" onClick={updatePassword}>
+                Update Password
+              </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ================= APPEARANCE ================= */}
+        <TabsContent value="appearance">
+          <Card>
+            <CardHeader>
+              <CardTitle>Appearance</CardTitle>
+              <p className="text-sm text-gray-500">
+                Customize dashboard look & feel
+              </p>
+            </CardHeader>
+
+            <CardContent className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium">Dark Mode</p>
+                  <p className="text-sm text-gray-500">
+                    Toggle dark theme
+                  </p>
+                </div>
+                <Switch
+                  checked={ui.theme === "dark"}
+                  onCheckedChange={() =>
+                    setUi((p) => ({
+                      ...p,
+                      theme: p.theme === "dark" ? "light" : "dark",
+                    }))
+                  }
+                />
+              </div>
+
+              <Separator />
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium">Compact Sidebar</p>
+                  <p className="text-sm text-gray-500">
+                    Reduce sidebar width
+                  </p>
+                </div>
+                <Switch
+                  checked={ui.compactSidebar}
+                  onCheckedChange={() =>
+                    handleUiToggle("compactSidebar")
+                  }
+                />
+              </div>
+
+              <Button onClick={saveUI}>Save Appearance</Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

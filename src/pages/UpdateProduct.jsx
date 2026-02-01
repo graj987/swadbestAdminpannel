@@ -3,9 +3,27 @@ import { useParams, useNavigate } from "react-router-dom";
 import api from "../api";
 import imageCompression from "browser-image-compression";
 
+import { Image as ImageIcon } from "lucide-react";
+
+import { Card, CardContent, CardHeader, CardTitle } from "@/Components/ui/card";
+import { Input } from "@/Components/ui/input";
+import { Textarea } from "@/Components/ui/textarea";
+import { Button } from "@/Components/ui/button";
+import { Label } from "@/Components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/Components/ui/select";
+
+/* ================================================= */
+
 export default function UpdateProduct() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const fileRef = useRef(null);
 
   const [form, setForm] = useState({
     name: "",
@@ -22,21 +40,19 @@ export default function UpdateProduct() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  const fileRef = useRef(null);
-
   /* ================= LOAD PRODUCT ================= */
+
   useEffect(() => {
     (async () => {
       try {
         const res = await api.get(`/api/admin/products/${id}`);
         const p = res.data;
-
-        const v = p.variants?.[0]; // 🔒 FIRST VARIANT ONLY
+        const v = p.variants?.[0]; // backend constraint
 
         setForm({
-          name: p.name,
-          description: p.description,
-          category: p.category,
+          name: p.name || "",
+          description: p.description || "",
+          category: p.category || "Other",
           weight: v?.weight || "",
           price: v?.price || "",
           stock: v?.stock || "",
@@ -82,8 +98,8 @@ export default function UpdateProduct() {
     e.preventDefault();
     setError("");
 
-    if (!form.name.trim()) return setError("Name required");
-    if (!form.weight.trim()) return setError("Variant weight required");
+    if (!form.name.trim()) return setError("Product name is required");
+    if (!form.weight.trim()) return setError("Variant weight is required");
 
     try {
       setSaving(true);
@@ -97,7 +113,7 @@ export default function UpdateProduct() {
         category: form.category,
         image: imageUrl,
 
-        // 🔥 VARIANT UPDATE
+        // variant update (index 0 only)
         variantIndex: 0,
         weight: form.weight,
         price: Number(form.price),
@@ -113,136 +129,158 @@ export default function UpdateProduct() {
   };
 
   if (loading) {
-    return <div className="p-6 text-center text-lg">Loading...</div>;
+    return (
+      <div className="p-8 text-center text-muted-foreground">
+        Loading product…
+      </div>
+    );
   }
 
   /* ================= UI ================= */
 
   return (
-    <div className="max-w-3xl mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-5 text-center">
-        Update Product
-      </h1>
+    <div className="p-4 lg:p-8 max-w-5xl mx-auto space-y-6">
+      {/* HEADER */}
+      <div>
+        <h1 className="text-3xl font-bold">Update Product</h1>
+        <p className="text-muted-foreground mt-1">
+          Edit product details and inventory
+        </p>
+      </div>
 
       {error && (
-        <p className="mb-4 p-2 bg-red-100 text-red-700 rounded text-center">
+        <div className="bg-red-50 border border-red-200 text-red-700 p-3 rounded-lg">
           {error}
-        </p>
+        </div>
       )}
 
       <form
         onSubmit={saveProduct}
-        className="bg-white p-5 rounded-xl border shadow grid md:grid-cols-2 gap-5"
+        className="grid grid-cols-1 lg:grid-cols-3 gap-6"
       >
         {/* LEFT */}
-        <div className="space-y-3">
-          <div>
-            <label className="text-sm font-medium">Product Name</label>
-            <input
-              name="name"
-              value={form.name}
-              onChange={handleChange}
-              className="mt-1 w-full p-2 border rounded text-sm"
-            />
-          </div>
+        <div className="lg:col-span-2 space-y-6">
+          {/* BASIC INFO */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Basic Information</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label>Product Name</Label>
+                <Input
+                  name="name"
+                  value={form.name}
+                  onChange={handleChange}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Description</Label>
+                <Textarea
+                  rows={4}
+                  name="description"
+                  value={form.description}
+                  onChange={handleChange}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Category</Label>
+                <Select
+                  value={form.category}
+                  onValueChange={(v) =>
+                    setForm((p) => ({ ...p, category: v }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Snacks">Snacks</SelectItem>
+                    <SelectItem value="Meal">Meal</SelectItem>
+                    <SelectItem value="Sweets">Sweets</SelectItem>
+                    <SelectItem value="Pickles">Pickles</SelectItem>
+                    <SelectItem value="Drinks">Drinks</SelectItem>
+                    <SelectItem value="Other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
 
           {/* VARIANT */}
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <label className="text-sm font-medium">Weight</label>
-              <input
+          <Card>
+            <CardHeader>
+              <CardTitle>Variant (Primary)</CardTitle>
+            </CardHeader>
+            <CardContent className="grid grid-cols-3 gap-3">
+              <Input
+                placeholder="Weight (e.g. 250 g)"
                 name="weight"
                 value={form.weight}
                 onChange={handleChange}
-                className="mt-1 w-full p-2 border rounded text-sm"
               />
-            </div>
-
-            <div>
-              <label className="text-sm font-medium">Price (₹)</label>
-              <input
-                name="price"
+              <Input
                 type="number"
+                placeholder="Price (₹)"
+                name="price"
                 value={form.price}
                 onChange={handleChange}
-                className="mt-1 w-full p-2 border rounded text-sm"
               />
-            </div>
-
-            <div>
-              <label className="text-sm font-medium">Stock</label>
-              <input
-                name="stock"
+              <Input
                 type="number"
-                min="0"
+                placeholder="Stock"
+                name="stock"
                 value={form.stock}
                 onChange={handleChange}
-                className="mt-1 w-full p-2 border rounded text-sm"
               />
-            </div>
-          </div>
-
-          <div>
-            <label className="text-sm font-medium">Category</label>
-            <select
-              name="category"
-              value={form.category}
-              onChange={handleChange}
-              className="mt-1 w-full p-2 border rounded bg-white text-sm"
-            >
-              <option>Snacks</option>
-              <option>Meal</option>
-              <option>Sweets</option>
-              <option>Pickles</option>
-              <option>Drinks</option>
-              <option>Other</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="text-sm font-medium">Description</label>
-            <textarea
-              name="description"
-              rows={3}
-              value={form.description}
-              onChange={handleChange}
-              className="mt-1 w-full p-2 border rounded resize-none text-sm"
-            />
-          </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* RIGHT */}
-        <div className="space-y-3">
-          <label className="text-sm font-medium">Product Image</label>
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Product Image</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div
+                onClick={() => fileRef.current?.click()}
+                className="cursor-pointer border-2 border-dashed rounded-xl p-4 text-center hover:border-primary transition"
+              >
+                {preview ? (
+                  <img
+                    src={preview}
+                    alt="Preview"
+                    className="w-full h-48 object-cover rounded-lg"
+                  />
+                ) : (
+                  <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                    <ImageIcon className="w-6 h-6" />
+                    <p>Click to upload image</p>
+                  </div>
+                )}
+              </div>
 
-          <div className="w-full h-48 bg-gray-100 border rounded-lg overflow-hidden flex items-center justify-center">
-            {preview ? (
-              <img src={preview} className="w-full h-full object-cover" />
-            ) : (
-              <span className="text-gray-400 text-sm">No image</span>
-            )}
-          </div>
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*"
+                hidden
+                onChange={handleFile}
+              />
+            </CardContent>
+          </Card>
 
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/*"
-            onChange={handleFile}
-            className="text-sm"
-          />
-
-          {saving && (
-            <p className="text-blue-600 text-sm font-medium">Saving...</p>
-          )}
-        </div>
-
-        <div className="md:col-span-2">
-          <button
+          <Button
             disabled={saving}
-            className="w-full bg-blue-600 text-white py-2.5 rounded-lg font-medium hover:bg-blue-700 disabled:opacity-60"
+            className="w-full"
+            size="lg"
           >
             {saving ? "Saving..." : "Update Product"}
-          </button>
+          </Button>
         </div>
       </form>
     </div>

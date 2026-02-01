@@ -1,226 +1,257 @@
 import React, { useEffect, useState } from "react";
 import api from "../api";
+
+import {
+  TrendingUp,
+  TrendingDown,
+  Users,
+  DollarSign,
+  ShoppingCart,
+  Activity,
+} from "lucide-react";
+
+import { Card, CardContent, CardHeader, CardTitle } from "../Components/ui/card";
 import {
   AreaChart,
   Area,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
+  CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  CartesianGrid,
+  Line,
 } from "recharts";
-import AdminNotifications from "./AdminNotification";
 
-function getAuthHeader() {
-  const token = localStorage.getItem("adminToken");
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/Components/ui/table";
 
-const formatCurrency = (v) =>
-  typeof v === "number"
-    ? v.toLocaleString("en-IN", { maximumFractionDigits: 2 })
-    : v;
+import { Badge } from "@/Components/ui/badge";
+
+/* ------------------ HELPERS ------------------ */
+
+const authHeader = () => ({
+  Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
+});
+
+const currency = (v) =>
+  `₹${Number(v || 0).toLocaleString("en-IN")}`;
+
+/* ------------------ COMPONENT ------------------ */
 
 export default function AdminDashboard() {
-  const [stats, setStats] = useState({
-    usersCount: 0,
-    productsCount: 0,
-    ordersCount: 0,
-    revenue: 0,
-  });
-
-  const [recentOrders, setRecentOrders] = useState([]);
-  const [recentProducts, setRecentProducts] = useState([]);
-  const [chartData, setChartData] = useState([]);
+  const [stats, setStats] = useState(null);
+  const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    let mounted = true;
-
     const load = async () => {
       try {
-        const [statsRes, ordersRes, productsRes] = await Promise.all([
-          api.get("/api/admin/stats", { headers: getAuthHeader() }),
-          api.get("/api/admin/orders?limit=5", { headers: getAuthHeader() }),
-          api.get("/api/admin/products?limit=5", { headers: getAuthHeader() }),
+        const [statsRes, ordersRes] = await Promise.all([
+          api.get("/api/admin/stats", { headers: authHeader() }),
+          api.get("/api/admin/orders?limit=5", {
+            headers: authHeader(),
+          }),
         ]);
 
-        if (!mounted) return;
-
-        setStats({
-          usersCount: statsRes.data?.usersCount ?? 0,
-          productsCount: statsRes.data?.productsCount ?? 0,
-          ordersCount: statsRes.data?.ordersCount ?? 0,
-          revenue: statsRes.data?.revenue ?? 0,
-        });
-
-        setChartData(
-          Array.isArray(statsRes.data?.revenueChart)
-            ? statsRes.data.revenueChart.map((d) => ({
-                date: d.date,
-                revenue: Number(d.revenue),
-              }))
-            : []
-        );
-
-        setRecentOrders(Array.isArray(ordersRes.data) ? ordersRes.data : []);
-        setRecentProducts(Array.isArray(productsRes.data) ? productsRes.data : []);
-      } catch (err) {err}
-      finally {
-        if (mounted) setLoading(false);
+        setStats(statsRes.data);
+        setOrders(ordersRes.data || []);
+      } finally {
+        setLoading(false);
       }
     };
 
     load();
-    return () => (mounted = false);
   }, []);
 
-  /* ------------------ LOADING SKELETON ------------------ */
-  if (loading)
-    return (
-      <div className="p-6">
-        <h1 className="text-3xl font-bold mb-8">Dashboard</h1>
+  if (loading) return <p className="p-8">Loading dashboard…</p>;
+  if (!stats) return <p className="p-8">Failed to load dashboard</p>;
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="h-24 bg-white rounded-xl shadow animate-pulse" />
-          ))}
-        </div>
+  /* ------------------ STATS CONFIG ------------------ */
 
-        <div className="bg-white rounded-xl shadow h-64 mt-6 animate-pulse" />
-      </div>
-    );
+  const statsUI = [
+    {
+      name: "Total Revenue",
+      value: currency(stats.revenue),
+      change: "+",
+      trend: "up",
+      icon: DollarSign,
+      color: "text-green-600",
+      bgColor: "bg-green-50",
+    },
+    {
+      name: "Active Users",
+      value: stats.usersCount,
+      trend: "up",
+      icon: Users,
+      color: "text-blue-600",
+      bgColor: "bg-blue-50",
+    },
+    {
+      name: "Total Orders",
+      value: stats.ordersCount,
+      trend: "up",
+      icon: ShoppingCart,
+      color: "text-purple-600",
+      bgColor: "bg-purple-50",
+    },
+    {
+      name: "Conversion Rate",
+      value: `${stats.conversionRate || 0}%`,
+      trend: stats.conversionRate >= 0 ? "up" : "down",
+      icon: Activity,
+      color: "text-orange-600",
+      bgColor: "bg-orange-50",
+    },
+  ];
 
-  /* ------------------ MAIN UI ------------------ */
   return (
-    <div className="p-6">
-      <h1 className="text-3xl font-bold mb-8">Dashboard</h1>
+    <div className="p-4 lg:p-8 space-y-6">
+      {/* HEADER */}
+      <div>
+        <h1 className="text-3xl font-bold">Dashboard</h1>
+        <p className="text-gray-500 mt-1">
+          Real-time business overview
+        </p>
+      </div>
 
       {/* STATS */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-10">
-        <StatCard label="Users" value={stats.usersCount} color="blue" />
-        <StatCard label="Products" value={stats.productsCount} color="green" />
-        <StatCard label="Orders" value={stats.ordersCount} color="indigo" />
-        <StatCard
-          label="Revenue"
-          value={`₹${formatCurrency(stats.revenue)}`}
-          color="orange"
-          />
-      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {statsUI.map((stat) => {
+          const Icon = stat.icon;
+          const Trend =
+            stat.trend === "up" ? TrendingUp : TrendingDown;
 
-      {/* CHART + RECENT ITEMS */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        
-        {/* CHART */}
-        <div className="col-span-2 bg-white rounded-xl shadow border p-6">
-          <h2 className="text-lg font-semibold mb-4">Revenue (Last 7 Days)</h2>
-
-          {chartData.length === 0 ? (
-            <p className="text-gray-500 text-sm">No revenue data available.</p>
-          ) : (
-            <div className="w-full h-72">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chartData}>
-                  <defs>
-                    <linearGradient id="rev" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.4} />
-                      <stop offset="95%" stopColor="#4f46e5" stopOpacity={0.05} />
-                    </linearGradient>
-                  </defs>
-
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-                  <YAxis tickFormatter={(v) => `₹${v}`} />
-                  <Tooltip formatter={(v) => `₹${formatCurrency(v)}`} />
-
-                  <Area
-                    type="monotone"
-                    dataKey="revenue"
-                    stroke="#4f46e5"
-                    fill="url(#rev)"
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          )}
-        </div>
-
-        {/* RECENT ITEMS */}
-        <div className="space-y-8">
-
-          {/* RECENT ORDERS */}
-          <div className="bg-white rounded-xl shadow border p-6">
-            <h2 className="text-lg font-semibold mb-4">Recent Orders</h2>
-
-            {recentOrders.length === 0 ? (
-              <p className="text-sm text-gray-500">No recent orders.</p>
-            ) : (
-              <div className="space-y-4">
-                {recentOrders.map((o) => (
-                  <div key={o._id} className="p-3 bg-gray-50 rounded-lg flex justify-between items-center">
-                    <div>
-                      <p className="font-medium">{o.user?.name ?? "User"}</p>
-                      <p className="text-xs text-gray-500">{o._id}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-green-600 font-semibold">
-                        ₹{formatCurrency(o.totalAmount)}
-                      </p>
-                      <p className="text-xs text-gray-500">{o.orderStatus}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* RECENT PRODUCTS */}
-          <div className="bg-white rounded-xl shadow border p-6">
-            <h2 className="text-lg font-semibold mb-4">Recent Products</h2>
-
-            {recentProducts.length === 0 ? (
-              <p className="text-sm text-gray-500">No recent products.</p>
-            ) : (
-              <div className="space-y-4">
-                {recentProducts.map((p) => (
-                  <div key={p._id} className="flex items-center gap-3">
-                    <img
-                      src={p.image}
-                      className="w-12 h-12 rounded-lg border object-cover"
-                      alt=""
+          return (
+            <Card key={stat.name}>
+              <CardContent className="p-6 flex justify-between items-center">
+                <div>
+                  <p className="text-sm text-gray-600">{stat.name}</p>
+                  <p className="text-2xl font-bold">{stat.value}</p>
+                  <div className="flex items-center gap-1 mt-2">
+                    <Trend
+                      className={`w-4 h-4 ${
+                        stat.trend === "up"
+                          ? "text-green-600"
+                          : "text-red-600"
+                      }`}
                     />
-                    <div>
-                      <p className="font-medium">{p.name}</p>
-                      <p className="text-sm text-gray-600">
-                        ₹{formatCurrency(p.price)}
-                      </p>
-                    </div>
+                    <span className="text-sm text-gray-500">
+                      vs last period
+                    </span>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
+                </div>
 
-        </div>
-
+                <div className={`${stat.bgColor} p-3 rounded-xl`}>
+                  <Icon className={`w-6 h-6 ${stat.color}`} />
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
-    </div>
-  );
-}
 
-/* ------------------ STAT CARD ------------------ */
-function StatCard({ label, value, color }) {
-  const map = {
-    blue: "text-blue-600 bg-blue-50",
-    green: "text-green-600 bg-green-50",
-    orange: "text-orange-600 bg-orange-50",
-    indigo: "text-indigo-600 bg-indigo-50",
-  };
+      {/* CHARTS */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* REVENUE */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Revenue Overview</CardTitle>
+            <p className="text-sm text-gray-500">
+              Monthly revenue vs target
+            </p>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <AreaChart data={stats.revenueChart || []}>
+                <defs>
+                  <linearGradient id="rev" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="month" />
+                <YAxis />
+                <Tooltip />
+                <Area
+                  dataKey="revenue"
+                  stroke="#3b82f6"
+                  fill="url(#rev)"
+                />
+                <Line
+                  dataKey="target"
+                  stroke="#94a3b8"
+                  strokeDasharray="5 5"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
 
-  return (
-    <div className="p-6 bg-white rounded-xl shadow border">
-      <p className="text-sm text-gray-500">{label}</p>
-      <p className={`mt-2 text-3xl font-bold ${map[color]}`}>{value}</p>
+        {/* TRAFFIC */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Weekly Traffic</CardTitle>
+            <p className="text-sm text-gray-500">Last 7 days</p>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={stats.trafficChart || []}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" />
+                <YAxis />
+                <Tooltip />
+                <Bar
+                  dataKey="users"
+                  fill="#8b5cf6"
+                  radius={[8, 8, 0, 0]}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* ORDERS */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Recent Orders</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Order</TableHead>
+                <TableHead>Customer</TableHead>
+                <TableHead>Amount</TableHead>
+                <TableHead>Status</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {orders.map((o) => (
+                <TableRow key={o._id}>
+                  <TableCell>{o.orderNumber}</TableCell>
+                  <TableCell>{o.user?.name || "User"}</TableCell>
+                  <TableCell>{currency(o.totalAmount)}</TableCell>
+                  <TableCell>
+                    <Badge className="capitalize">
+                      {o.orderStatus}
+                    </Badge>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
     </div>
   );
 }

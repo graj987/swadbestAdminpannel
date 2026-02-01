@@ -1,6 +1,23 @@
 import React, { useState, useRef, useEffect } from "react";
 import api from "../api";
 
+import { Plus, Image as ImageIcon } from "lucide-react";
+
+import { Card, CardContent, CardHeader, CardTitle } from "@/Components/ui/card";
+import { Input } from "@/Components/ui/input";
+import { Textarea } from "@/Components/ui/textarea";
+import { Button } from "@/Components/ui/button";
+import { Label } from "@/Components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/Components/ui/select";
+
+/* ================================================= */
+
 export default function AddProducts() {
   const [form, setForm] = useState({
     name: "",
@@ -15,13 +32,13 @@ export default function AddProducts() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  const uploadRef = useRef();
+  const uploadRef = useRef(null);
 
   useEffect(() => {
     return () => preview && URL.revokeObjectURL(preview);
   }, [preview]);
 
-  /* ================= HANDLERS ================= */
+  /* ---------------- HANDLERS ---------------- */
 
   const handleChange = (e) =>
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
@@ -44,11 +61,12 @@ export default function AddProducts() {
     if (!f) return;
 
     if (!f.type.startsWith("image/"))
-      return setError("Only image files allowed");
+      return setError("Only image files are allowed");
 
     if (f.size > 2 * 1024 * 1024)
       return setError("Image must be below 2MB");
 
+    setError("");
     setImageFile(f);
     setPreview(URL.createObjectURL(f));
   };
@@ -62,10 +80,10 @@ export default function AddProducts() {
     });
     setImageFile(null);
     setPreview("");
-    uploadRef.current.value = "";
+    if (uploadRef.current) uploadRef.current.value = "";
   };
 
-  /* ================= SUBMIT ================= */
+  /* ---------------- SUBMIT ---------------- */
 
   const submit = async (e) => {
     e.preventDefault();
@@ -93,20 +111,15 @@ export default function AddProducts() {
     fd.append("description", form.description);
     fd.append("category", form.category);
 
-    // BACKEND EXPECTS SINGLE VARIANT
+    // backend expects single variant
     fd.append("weight", firstVariant.weight);
     fd.append("price", Number(firstVariant.price));
     fd.append("stock", Number(firstVariant.stock));
-
     fd.append("image", imageFile);
 
     try {
       setLoading(true);
-
-      await api.post("/api/admin/products", fd, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-
+      await api.post("/api/admin/products", fd);
       setSuccess("Product added successfully");
       reset();
     } catch (err) {
@@ -119,106 +132,170 @@ export default function AddProducts() {
   /* ================= UI ================= */
 
   return (
-    <div className="max-w-3xl mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-5 text-center">Add Product</h1>
+    <div className="p-4 lg:p-8 space-y-6 max-w-5xl mx-auto">
+      {/* HEADER */}
+      <div>
+        <h1 className="text-3xl font-bold">Add Product</h1>
+        <p className="text-muted-foreground mt-1">
+          Create and publish a new product
+        </p>
+      </div>
 
-      {error && <p className="mb-3 text-red-600 text-center">{error}</p>}
-      {success && <p className="mb-3 text-green-600 text-center">{success}</p>}
+      {error && (
+        <div className="bg-red-50 text-red-700 border border-red-200 p-3 rounded-lg">
+          {error}
+        </div>
+      )}
 
-      <form
-        onSubmit={submit}
-        className="bg-white p-5 rounded-xl border shadow space-y-5"
-      >
-        {/* BASIC INFO */}
-        <input
-          name="name"
-          placeholder="Product name"
-          value={form.name}
-          onChange={handleChange}
-          className="w-full border p-2 rounded"
-        />
+      {success && (
+        <div className="bg-green-50 text-green-700 border border-green-200 p-3 rounded-lg">
+          {success}
+        </div>
+      )}
 
-        <textarea
-          name="description"
-          placeholder="Description"
-          rows={3}
-          value={form.description}
-          onChange={handleChange}
-          className="w-full border p-2 rounded"
-        />
+      <form onSubmit={submit} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* LEFT */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* BASIC INFO */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Basic Information</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label>Product Name</Label>
+                <Input
+                  name="name"
+                  placeholder="Enter product name"
+                  value={form.name}
+                  onChange={handleChange}
+                />
+              </div>
 
-        <select
-          name="category"
-          value={form.category}
-          onChange={handleChange}
-          className="w-full border p-2 rounded"
-        >
-          <option>Snacks</option>
-          <option>Meal</option>
-          <option>Sweets</option>
-          <option>Pickles</option>
-          <option>Drinks</option>
-          <option>Other</option>
-        </select>
+              <div className="space-y-2">
+                <Label>Description</Label>
+                <Textarea
+                  rows={4}
+                  name="description"
+                  placeholder="Product description"
+                  value={form.description}
+                  onChange={handleChange}
+                />
+              </div>
 
-        {/* VARIANTS */}
-        <h3 className="font-semibold">Variants (at least one)</h3>
+              <div className="space-y-2">
+                <Label>Category</Label>
+                <Select
+                  value={form.category}
+                  onValueChange={(v) =>
+                    setForm((p) => ({ ...p, category: v }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Snacks">Snacks</SelectItem>
+                    <SelectItem value="Meal">Meal</SelectItem>
+                    <SelectItem value="Sweets">Sweets</SelectItem>
+                    <SelectItem value="Pickles">Pickles</SelectItem>
+                    <SelectItem value="Drinks">Drinks</SelectItem>
+                    <SelectItem value="Other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
 
-        {form.variants.map((v, i) => (
-          <div key={i} className="grid grid-cols-3 gap-3">
-            <input
-              placeholder="Weight (e.g. 250 g)"
-              value={v.weight}
-              onChange={(e) => updateVariant(i, "weight", e.target.value)}
-              className="border p-2 rounded"
-            />
-            <input
-              type="number"
-              placeholder="Price"
-              value={v.price}
-              onChange={(e) => updateVariant(i, "price", e.target.value)}
-              className="border p-2 rounded"
-            />
-            <input
-              type="number"
-              placeholder="Stock"
-              value={v.stock}
-              onChange={(e) => updateVariant(i, "stock", e.target.value)}
-              className="border p-2 rounded"
-            />
-          </div>
-        ))}
+          {/* VARIANTS */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Variants</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {form.variants.map((v, i) => (
+                <div key={i} className="grid grid-cols-3 gap-3">
+                  <Input
+                    placeholder="Weight (e.g. 250 g)"
+                    value={v.weight}
+                    onChange={(e) =>
+                      updateVariant(i, "weight", e.target.value)
+                    }
+                  />
+                  <Input
+                    type="number"
+                    placeholder="Price (₹)"
+                    value={v.price}
+                    onChange={(e) =>
+                      updateVariant(i, "price", e.target.value)
+                    }
+                  />
+                  <Input
+                    type="number"
+                    placeholder="Stock"
+                    value={v.stock}
+                    onChange={(e) =>
+                      updateVariant(i, "stock", e.target.value)
+                    }
+                  />
+                </div>
+              ))}
 
-        <button
-          type="button"
-          onClick={addVariant}
-          className="px-3 py-1 bg-gray-200 rounded"
-        >
-          + Add Variant (future use)
-        </button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={addVariant}
+                className="w-fit"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Add Variant (future use)
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
 
-        {/* IMAGE */}
-        <input
-          type="file"
-          ref={uploadRef}
-          accept="image/*"
-          onChange={handleFile}
-        />
+        {/* RIGHT */}
+        <div className="space-y-6">
+          {/* IMAGE */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Product Image</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div
+                onClick={() => uploadRef.current?.click()}
+                className="cursor-pointer border-2 border-dashed rounded-xl p-4 text-center hover:border-primary transition"
+              >
+                {!preview ? (
+                  <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                    <ImageIcon className="w-6 h-6" />
+                    <p>Click to upload image</p>
+                    <span className="text-xs">Max 2MB</span>
+                  </div>
+                ) : (
+                  <img
+                    src={preview}
+                    alt="Preview"
+                    className="w-full h-48 object-cover rounded-lg"
+                  />
+                )}
+              </div>
 
-        {preview && (
-          <img
-            src={preview}
-            className="w-full h-48 object-cover rounded"
-            alt="Preview"
-          />
-        )}
+              <input
+                ref={uploadRef}
+                type="file"
+                accept="image/*"
+                hidden
+                onChange={handleFile}
+              />
+            </CardContent>
+          </Card>
 
-        <button
-          disabled={loading}
-          className="w-full bg-blue-600 text-white py-2 rounded"
-        >
-          {loading ? "Saving..." : "Add Product"}
-        </button>
+          {/* ACTION */}
+          <Button disabled={loading} className="w-full" size="lg">
+            {loading ? "Saving..." : "Add Product"}
+          </Button>
+        </div>
       </form>
     </div>
   );
