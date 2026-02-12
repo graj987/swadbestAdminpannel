@@ -30,6 +30,8 @@ import AdminBlogs from "./pages/BlogPost";
 import AddBlog from "./pages/AddBlog";
 import EditBlog from "./pages/EditBlog";
 import AdminTrack from "./pages/AdminTrack";
+import FeaturedProducts from "./pages/FeaturedProducts";
+import Deals from "./pages/Deals";
 
 /* ================= PROTECTED ROUTE ================= */
 
@@ -56,7 +58,10 @@ export default function App() {
         <Router>
           <Routes>
             {/* ROOT */}
-            <Route path="/" element={<Navigate to="/admin/dashboard" replace />} />
+            <Route
+              path="/"
+              element={<Navigate to="/admin/dashboard" replace />}
+            />
 
             {/* PUBLIC */}
             <Route path="/admin/login" element={<Login />} />
@@ -77,10 +82,17 @@ export default function App() {
               <Route path="product" element={<Products />} />
               <Route path="add-product" element={<AddProduct />} />
               <Route path="products/:id" element={<UpdateProduct />} />
+              <Route
+                path="/admin/featured-products"
+                element={<FeaturedProducts />}
+              />
+              <Route path="/admin/deals" element={<Deals />} />
+
 
               {/* ORDERS */}
               <Route path="orders" element={<Orders />} />
               <Route path="track/:awb" element={<AdminTrack />} />
+
 
               {/* USERS */}
               <Route path="users" element={<Users />} />
@@ -94,7 +106,10 @@ export default function App() {
               <Route path="profile" element={<Profile />} />
               <Route path="settings" element={<Settings />} />
               <Route path="add-hero" element={<AdminHero />} />
-              <Route path="notifications" element={<AdminNotificationsPage />} />
+              <Route
+                path="notifications"
+                element={<AdminNotificationsPage />}
+              />
 
               {/* FALLBACK */}
               <Route

@@ -170,7 +170,8 @@ export default function AdminLayout() {
               </Button>
 
               {notifOpen && (
-                <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-gray-800 border rounded-xl shadow-lg z-50">
+               <div class="absolute right-0 mt-2 w-80 -translate-x-10 bg-white dark:bg-gray-800 border rounded-xl shadow-lg z-50">
+
                   <div className="px-4 py-2 font-semibold border-b">
                     Notifications
                   </div>

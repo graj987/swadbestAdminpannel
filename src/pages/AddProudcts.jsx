@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import api from "../api";
 
-import { Plus, Image as ImageIcon } from "lucide-react";
+import { Plus, Trash2, Image as ImageIcon } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -15,8 +15,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-
-/* ================================================= */
 
 export default function AddProducts() {
   const [form, setForm] = useState({
@@ -38,8 +36,6 @@ export default function AddProducts() {
     return () => preview && URL.revokeObjectURL(preview);
   }, [preview]);
 
-  /* ---------------- HANDLERS ---------------- */
-
   const handleChange = (e) =>
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
 
@@ -50,10 +46,24 @@ export default function AddProducts() {
   };
 
   const addVariant = () => {
+    const last = form.variants[form.variants.length - 1];
+
+    if (!last.weight || last.price === "" || last.stock === "") {
+      setError("Complete current variant first");
+      return;
+    }
+
+    setError("");
     setForm({
       ...form,
       variants: [...form.variants, { weight: "", price: "", stock: "" }],
     });
+  };
+
+  const removeVariant = (index) => {
+    if (form.variants.length === 1) return;
+    const variants = form.variants.filter((_, i) => i !== index);
+    setForm({ ...form, variants });
   };
 
   const handleFile = (e) => {
@@ -83,27 +93,24 @@ export default function AddProducts() {
     if (uploadRef.current) uploadRef.current.value = "";
   };
 
-  /* ---------------- SUBMIT ---------------- */
-
   const submit = async (e) => {
     e.preventDefault();
     setError("");
     setSuccess("");
-
-    const firstVariant = form.variants[0];
 
     if (!form.name.trim()) return setError("Product name is required");
     if (!form.description.trim())
       return setError("Product description is required");
     if (!imageFile) return setError("Product image is required");
 
-    if (
-      !firstVariant ||
-      !firstVariant.weight ||
-      firstVariant.price === "" ||
-      firstVariant.stock === ""
-    ) {
-      return setError("At least one valid variant is required");
+    if (!Array.isArray(form.variants) || form.variants.length === 0) {
+      return setError("At least one variant is required");
+    }
+
+    for (const v of form.variants) {
+      if (!v.weight || Number(v.price) <= 0 || Number(v.stock) < 0) {
+        return setError("Enter valid variant data");
+      }
     }
 
     const fd = new FormData();
@@ -111,10 +118,17 @@ export default function AddProducts() {
     fd.append("description", form.description);
     fd.append("category", form.category);
 
-    // backend expects single variant
-    fd.append("weight", firstVariant.weight);
-    fd.append("price", Number(firstVariant.price));
-    fd.append("stock", Number(firstVariant.stock));
+    fd.append(
+      "variants",
+      JSON.stringify(
+        form.variants.map((v) => ({
+          weight: v.weight.trim(),
+          price: Number(v.price),
+          stock: Number(v.stock),
+        }))
+      )
+    );
+
     fd.append("image", imageFile);
 
     try {
@@ -129,11 +143,8 @@ export default function AddProducts() {
     }
   };
 
-  /* ================= UI ================= */
-
   return (
     <div className="p-4 lg:p-8 space-y-6 max-w-5xl mx-auto">
-      {/* HEADER */}
       <div>
         <h1 className="text-3xl font-bold">Add Product</h1>
         <p className="text-muted-foreground mt-1">
@@ -154,9 +165,7 @@ export default function AddProducts() {
       )}
 
       <form onSubmit={submit} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* LEFT */}
         <div className="lg:col-span-2 space-y-6">
-          {/* BASIC INFO */}
           <Card>
             <CardHeader>
               <CardTitle>Basic Information</CardTitle>
@@ -164,12 +173,7 @@ export default function AddProducts() {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label>Product Name</Label>
-                <Input
-                  name="name"
-                  placeholder="Enter product name"
-                  value={form.name}
-                  onChange={handleChange}
-                />
+                <Input name="name" value={form.name} onChange={handleChange} />
               </div>
 
               <div className="space-y-2">
@@ -177,7 +181,6 @@ export default function AddProducts() {
                 <Textarea
                   rows={4}
                   name="description"
-                  placeholder="Product description"
                   value={form.description}
                   onChange={handleChange}
                 />
@@ -207,16 +210,15 @@ export default function AddProducts() {
             </CardContent>
           </Card>
 
-          {/* VARIANTS */}
           <Card>
             <CardHeader>
               <CardTitle>Variants</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               {form.variants.map((v, i) => (
-                <div key={i} className="grid grid-cols-3 gap-3">
+                <div key={i} className="grid grid-cols-4 gap-3">
                   <Input
-                    placeholder="Weight (e.g. 250 g)"
+                    placeholder="Weight"
                     value={v.weight}
                     onChange={(e) =>
                       updateVariant(i, "weight", e.target.value)
@@ -224,7 +226,7 @@ export default function AddProducts() {
                   />
                   <Input
                     type="number"
-                    placeholder="Price (₹)"
+                    placeholder="Price"
                     value={v.price}
                     onChange={(e) =>
                       updateVariant(i, "price", e.target.value)
@@ -238,61 +240,47 @@ export default function AddProducts() {
                       updateVariant(i, "stock", e.target.value)
                     }
                   />
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    onClick={() => removeVariant(i)}
+                  >
+                    <Trash2 size={16} />
+                  </Button>
                 </div>
               ))}
 
-              <Button
-                type="button"
-                variant="outline"
-                onClick={addVariant}
-                className="w-fit"
-              >
+              <Button type="button" variant="outline" onClick={addVariant}>
                 <Plus className="w-4 h-4 mr-2" />
-                Add Variant (future use)
+                Add Variant
               </Button>
             </CardContent>
           </Card>
         </div>
 
-        {/* RIGHT */}
         <div className="space-y-6">
-          {/* IMAGE */}
           <Card>
             <CardHeader>
               <CardTitle>Product Image</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent>
               <div
                 onClick={() => uploadRef.current?.click()}
-                className="cursor-pointer border-2 border-dashed rounded-xl p-4 text-center hover:border-primary transition"
+                className="cursor-pointer border-2 border-dashed rounded-xl p-4 text-center"
               >
-                {!preview ? (
-                  <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                    <ImageIcon className="w-6 h-6" />
-                    <p>Click to upload image</p>
-                    <span className="text-xs">Max 2MB</span>
-                  </div>
-                ) : (
-                  <img
-                    src={preview}
-                    alt="Preview"
-                    className="w-full h-48 object-cover rounded-lg"
-                  />
-                )}
+                {!preview ? <ImageIcon /> : <img src={preview} alt="Preview" />}
               </div>
 
               <input
                 ref={uploadRef}
                 type="file"
-                accept="image/*"
                 hidden
                 onChange={handleFile}
               />
             </CardContent>
           </Card>
 
-          {/* ACTION */}
-          <Button disabled={loading} className="w-full" size="lg">
+          <Button disabled={loading} className="w-full">
             {loading ? "Saving..." : "Add Product"}
           </Button>
         </div>

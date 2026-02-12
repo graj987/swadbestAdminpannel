@@ -1,131 +1,184 @@
 // src/pages/Login.jsx
-import React, { useState } from "react";
+import React from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api";
 import { useAuth } from "../context/useAuth";
+import {
+  Eye,
+  EyeOff,
+  Loader2,
+  Moon,
+  Sun,
+  ShieldCheck,
+} from "lucide-react";
 
 export default function Login() {
-  const [form, setForm] = useState({ email: "", password: "" });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
   const navigate = useNavigate();
   const { login } = useAuth();
 
-  const handleChange = (e) => setForm((p) => ({ ...p, [e.target.name]: e.target.value }));
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [remember, setRemember] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [theme, setTheme] = useState("light");
 
-  const extractTokenAndUser = (data) => {
-    // Accept many shapes:
-    // 1) { token: "...", admin: { ... } }
-    // 2) { accessToken: "...", user: {...} }
-    // 3) { token: "...", user: {...} }
-    // 4) raw token string -> data is string
-    // 5) token + user fields at same level -> { _id, name, email, token }
-    if (!data) return { token: null, user: null };
+  /* ---------------- THEME (persistent) ---------------- */
+  useEffect(() => {
+    const saved = localStorage.getItem("theme") || "light";
+    setTheme(saved);
+    document.documentElement.classList.toggle("dark", saved === "dark");
+  }, []);
 
-    if (typeof data === "string") {
-      return { token: data, user: null };
-    }
-
-    // direct token fields
-    const token = data.token || data.accessToken || data.access_token || null;
-
-    // possible user containers
-    let user = data.admin || data.user || data.data || null;
-
-    // handle case: token + user fields at same level (your sample)
-    const hasUserFieldsAtRoot = (data._id || data.id || data.email || data.name) && token;
-    if (!user && hasUserFieldsAtRoot) {
-      // create a user object copying everything except token-like fields
-      const { token: _t, accessToken: _a, access_token: _aa, ...rest } = data;
-      user = Object.keys(rest).length ? rest : null;
-    }
-
-    return { token, user };
+  const toggleTheme = () => {
+    const next = theme === "dark" ? "light" : "dark";
+    setTheme(next);
+    localStorage.setItem("theme", next);
+    document.documentElement.classList.toggle("dark", next === "dark");
   };
 
-  const looksLikeJwt = (t) => typeof t === "string" && t.split(".").length === 3;
-
+  /* ---------------- SUBMIT ---------------- */
   const submit = async (e) => {
     e.preventDefault();
     setError("");
-    if (!form.email || !form.password) return setError("Email and password are required.");
-    setLoading(true);
+
+    if (!email || !password) {
+      setError("Email and password are required.");
+      return;
+    }
 
     try {
-      const res = await api.post("/api/admin/login", form);
+      setLoading(true);
 
-      const { token, user } = extractTokenAndUser(res?.data);
+      const res = await api.post("/api/admin/login", { email, password });
 
-      // fallback deeper checks if needed
-      if (!token || !looksLikeJwt(token)) {
-        const alt = res?.data?.data ?? res?.data?.result ?? null;
-        const altExtract = extractTokenAndUser(alt);
-        if (!altExtract.token || !looksLikeJwt(altExtract.token)) {
-          throw new Error("No valid token returned from server");
-        }
-        // use fallback
-        localStorage.setItem("adminToken", altExtract.token);
-        localStorage.setItem("adminUser", JSON.stringify(altExtract.user || {}));
-        login(altExtract.user || null, altExtract.token);
-        navigate("/admin/dashboard");
-        return;
+      const token = res?.data?.token;
+      const user = res?.data?.admin || null;
+
+      if (!token) throw new Error("Invalid authentication response");
+
+      if (remember) {
+        localStorage.setItem("adminToken", token);
+        localStorage.setItem("adminUser", JSON.stringify(user));
       }
 
-      // persist for reloads / non-context consumers
-      localStorage.setItem("adminToken", token);
-      localStorage.setItem("adminUser", JSON.stringify(user || {}));
-
-      login(user || null, token);
-
+      login(user, token);
       navigate("/admin/dashboard");
     } catch (err) {
-      console.error("Login failed:", err);
-      const serverMessage = err?.response?.data?.message ?? err?.response?.data ?? null;
-      const msg = serverMessage || err?.message || "Login failed";
-      setError(typeof msg === "string" ? msg : JSON.stringify(msg));
+      setError(
+        err?.response?.data?.message ||
+          "Invalid credentials. Please try again."
+      );
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-6">
-      <div className="w-full max-w-md bg-white p-6 rounded-xl shadow-lg">
-        <h1 className="text-2xl font-bold mb-4 text-center">Admin Login</h1>
-        {error && <div className="bg-red-50 text-red-700 p-2 rounded mb-4">{error}</div>}
+    <main className="min-h-screen grid lg:grid-cols-2 bg-gray-100 dark:bg-gray-950">
+      {/* -------- LEFT BRAND / ILLUSTRATION -------- */}
+      <section className="hidden lg:flex flex-col justify-center px-16 bg-gradient-to-br from-blue-600 to-indigo-700 text-white">
+        <ShieldCheck size={48} />
+        <h1 className="text-3xl font-bold mt-6">Admin Control Center</h1>
+        <p className="mt-3 text-blue-100 max-w-md">
+          Secure access to your system. Manage data, users, and operations from
+          one powerful dashboard.
+        </p>
+      </section>
 
-        <form onSubmit={submit}>
-          <label className="block mb-2 text-sm font-medium">Email</label>
-          <input
-            name="email"
-            value={form.email}
-            onChange={handleChange}
-            type="email"
-            className="w-full border p-2 rounded mb-4"
-            placeholder="admin@example.com"
-            required
-          />
+      {/* -------- RIGHT LOGIN CARD -------- */}
+      <section className="flex items-center justify-center px-4">
+        <div className="w-full max-w-md bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-2xl p-8">
+          {/* Header */}
+          <header className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+                Admin Login
+              </h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Enter your credentials to continue
+              </p>
+            </div>
 
-          <label className="block mb-2 text-sm font-medium">Password</label>
-          <input
-            name="password"
-            value={form.password}
-            onChange={handleChange}
-            type="password"
-            className="w-full border p-2 rounded mb-4"
-            placeholder="••••••••"
-            required
-          />
+            <button
+              onClick={toggleTheme}
+              className="p-2 rounded-lg border border-gray-300 dark:border-gray-700"
+            >
+              {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
+            </button>
+          </header>
 
-          <button
-            type="submit"
-            className="w-full py-2 rounded bg-blue-600 text-white font-medium hover:bg-blue-700 disabled:opacity-60"
-            disabled={loading}
-          >
-            {loading ? "Signing in..." : "Sign In"}
-          </button>
-        </form>
-      </div>
-    </div>
+          {/* Error */}
+          {error && (
+            <div className="mb-4 rounded-lg bg-red-50 dark:bg-red-900/30 px-4 py-2 text-sm text-red-600 dark:text-red-400">
+              {error}
+            </div>
+          )}
+
+          {/* Form */}
+          <form onSubmit={submit} className="space-y-5">
+            {/* Email */}
+            <div>
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                Email
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
+                placeholder="admin@example.com"
+              />
+            </div>
+
+            {/* Password */}
+            <div>
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                Password
+              </label>
+              <div className="relative mt-1">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 pr-10 focus:ring-2 focus:ring-blue-500 outline-none"
+                  placeholder="••••••••"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-2.5 text-gray-500"
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+            </div>
+
+            {/* Remember */}
+            <div className="flex items-center justify-between">
+              <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                <input
+                  type="checkbox"
+                  checked={remember}
+                  onChange={() => setRemember(!remember)}
+                />
+                Remember me
+              </label>
+            </div>
+
+            {/* Button */}
+            <button
+              disabled={loading}
+              className="w-full flex justify-center items-center gap-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 transition disabled:opacity-60"
+            >
+              {loading && <Loader2 className="animate-spin" size={18} />}
+              {loading ? "Signing in..." : "Sign In"}
+            </button>
+          </form>
+        </div>
+      </section>
+    </main>
   );
 }
