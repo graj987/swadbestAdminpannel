@@ -8,6 +8,7 @@ import {
   FileText,
   Barcode,
   PackageX,
+  Package,
 } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -76,10 +77,35 @@ export default function AdminOrders() {
   }, []);
 
   /* ---------------- SHIPROCKET ACTIONS ---------------- */
-
+  const createShipment = async (orderId) => {
+    try {
+      await api.post(`/api/shiprocket/order/${orderId}/create`, {}, auth());
+      loadOrders();
+    } catch (err) {
+      alert(err.response?.data?.message || "Shipment creation failed");
+    }
+  };
   const generateAWB = async (orderId) => {
-    await api.post(`/api/shiprocket/order/${orderId}/awb`, {}, auth());
-    loadOrders();
+    try {
+      await api.post(`/api/shiprocket/order/${orderId}/awb`, {}, auth());
+      loadOrders();
+    } catch (err) {
+      const msg =
+        err.response?.data?.error ||
+        err.response?.data?.message ||
+        "AWB generation failed";
+
+      alert(msg); // quick feedback
+
+      // store warning locally so UI can show it
+      setOrders((prev) =>
+        prev.map((o) =>
+          o._id === orderId
+            ? { ...o, shipping: { ...o.shipping, warning: msg } }
+            : o,
+        ),
+      );
+    }
   };
 
   const generateLabel = async (shipmentId) => {
@@ -157,6 +183,7 @@ export default function AdminOrders() {
                 <TableHead>Customer</TableHead>
                 <TableHead>Total</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Shipping</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -170,7 +197,7 @@ export default function AdminOrders() {
                 const canCancel =
                   awb &&
                   !["in_transit", "out_for_delivery", "delivered"].includes(
-                    shipStatus
+                    shipStatus,
                   );
 
                 return (
@@ -183,13 +210,59 @@ export default function AdminOrders() {
 
                     <TableCell>{price(o.totalAmount)}</TableCell>
 
+                    {/* ORDER STATUS */}
                     <TableCell>
                       <Badge className={statusColor[o.orderStatus]}>
                         {o.orderStatus}
                       </Badge>
                     </TableCell>
 
+                    <TableCell>
+                      {/* Wallet Warning */}
+                      {o.shipping?.warning && (
+                        <div className="mb-1">
+                          <Badge className="bg-red-100 text-red-700">
+                            Wallet Recharge Required
+                          </Badge>
+                          <p className="text-xs text-red-500 mt-1">
+                            {o.shipping.warning}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Normal States */}
+                      {!shipmentId && !o.shipping?.warning && (
+                        <Badge className="bg-gray-100 text-gray-600">
+                          Not Created
+                        </Badge>
+                      )}
+                      {shipmentId && !awb && o.shipping?.warning && (
+                        <Button size="sm" variant="outline" disabled>
+                          Wallet Required
+                        </Button>
+                      )}
+
+                      {shipmentId && !awb && !o.shipping?.warning && (
+                        <Badge className="bg-blue-100 text-blue-700">
+                          Shipment Created
+                        </Badge>
+                      )}
+
+                      {awb && (
+                        <div className="flex flex-col">
+                          <Badge className="bg-green-100 text-green-700">
+                            {shipStatus || "Shipped"}
+                          </Badge>
+                          <span className="text-xs text-gray-500">
+                            AWB: {awb}
+                          </span>
+                        </div>
+                      )}
+                    </TableCell>
+
+                    {/* ✅ ACTION BUTTONS COLUMN */}
                     <TableCell className="text-right space-x-1">
+                      {/* VIEW */}
                       <Button
                         size="sm"
                         variant="ghost"
@@ -201,6 +274,18 @@ export default function AdminOrders() {
                         <Eye className="w-4 h-4" />
                       </Button>
 
+                      {/* CREATE SHIPMENT */}
+                      {!shipmentId && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => createShipment(o._id)}
+                        >
+                          <Package className="w-4 h-4" />
+                        </Button>
+                      )}
+
+                      {/* GENERATE AWB */}
                       {shipmentId && !awb && (
                         <Button
                           size="sm"
@@ -211,6 +296,7 @@ export default function AdminOrders() {
                         </Button>
                       )}
 
+                      {/* AFTER AWB */}
                       {awb && (
                         <>
                           <Button
@@ -260,17 +346,29 @@ export default function AdminOrders() {
 
           {selectedOrder && (
             <div className="space-y-2 text-sm">
-              <p><b>Order:</b> {selectedOrder.orderNumber}</p>
-              <p><b>Customer:</b> {selectedOrder.user?.name}</p>
-              <p><b>Email:</b> {selectedOrder.user?.email}</p>
+              <p>
+                <b>Order:</b> {selectedOrder.orderNumber}
+              </p>
+              <p>
+                <b>Customer:</b> {selectedOrder.user?.name}
+              </p>
+              <p>
+                <b>Email:</b> {selectedOrder.user?.email}
+              </p>
 
               <Separator />
 
-              <p><b>Amount:</b> {price(selectedOrder.totalAmount)}</p>
-              <p><b>Status:</b> {selectedOrder.orderStatus}</p>
+              <p>
+                <b>Amount:</b> {price(selectedOrder.totalAmount)}
+              </p>
+              <p>
+                <b>Status:</b> {selectedOrder.orderStatus}
+              </p>
 
               {selectedOrder.shipping?.awb && (
-                <p><b>AWB:</b> {selectedOrder.shipping.awb}</p>
+                <p>
+                  <b>AWB:</b> {selectedOrder.shipping.awb}
+                </p>
               )}
             </div>
           )}
