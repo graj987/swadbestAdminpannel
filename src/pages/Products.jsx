@@ -97,7 +97,6 @@ export default function Products() {
   };
   const today = new Date().toISOString().split("T")[0];
 
-
   const submitDeal = async () => {
     const { productId, discount, startAt, endAt } = dealModal;
 
@@ -226,9 +225,12 @@ export default function Products() {
                               alt={p.name}
                               className="w-10 h-10 rounded-md object-cover border"
                             />
-                            <div>
-                              <p className="font-medium">{p.name}</p>
-                              <p className="text-xs text-muted-foreground line-clamp-1">
+                            <div className="max-w-[220px] space-y-[2px]">
+                              <p className="text-sm font-medium leading-tight truncate">
+                                {p.name}
+                              </p>
+
+                              <p className="text-[11px] text-muted-foreground leading-tight line-clamp-2 break-words">
                                 {p.description}
                               </p>
                             </div>
@@ -291,108 +293,109 @@ export default function Products() {
                           )}
                         </TableCell>
                         {dealModal.open && (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 dark:bg-black/70 px-4">
-    <div className="w-full max-w-md rounded-xl bg-white dark:bg-gray-900 shadow-xl p-6">
-      
-      <h2 className="text-lg font-bold mb-4 text-gray-900 dark:text-gray-100">
-        Set Deal
-      </h2>
+                          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 dark:bg-black/70 px-4">
+                            <div className="w-full max-w-md rounded-xl bg-white dark:bg-gray-900 shadow-xl p-6">
+                              <h2 className="text-lg font-bold mb-4 text-gray-900 dark:text-gray-100">
+                                Set Deal
+                              </h2>
 
-      <div className="space-y-4">
-        {/* DISCOUNT */}
-        <div>
-          <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-            Discount (%)
-          </label>
-          <input
-            type="number"
-            min="1"
-            max="90"
-            placeholder="e.g. 20"
-            className="
+                              <div className="space-y-4">
+                                {/* DISCOUNT */}
+                                <div>
+                                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                    Discount (%)
+                                  </label>
+                                  <input
+                                    type="number"
+                                    min="1"
+                                    max="90"
+                                    placeholder="e.g. 20"
+                                    className="
               w-full mt-1 px-3 py-2 rounded-lg border
               bg-white dark:bg-gray-800
               text-gray-900 dark:text-gray-100
               border-gray-300 dark:border-gray-700
               focus:outline-none focus:ring-2 focus:ring-orange-500
             "
-            value={dealModal.discount}
-            onChange={(e) =>
-              setDealModal((s) => ({
-                ...s,
-                discount: e.target.value,
-              }))
-            }
-          />
-        </div>
+                                    value={dealModal.discount}
+                                    onChange={(e) =>
+                                      setDealModal((s) => ({
+                                        ...s,
+                                        discount: e.target.value,
+                                      }))
+                                    }
+                                  />
+                                </div>
 
-        {/* DATES */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
-            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-              Start Date
-            </label>
-            <input
-              type="date"
-              min={today}
-              className="
+                                {/* DATES */}
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                  <div>
+                                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                      Start Date
+                                    </label>
+                                    <input
+                                      type="date"
+                                      min={today}
+                                      className="
                 w-full mt-1 px-3 py-2 rounded-lg border
                 bg-white dark:bg-gray-800
                 text-gray-900 dark:text-gray-100
                 border-gray-300 dark:border-gray-700
                 focus:outline-none focus:ring-2 focus:ring-orange-500
               "
-              value={dealModal.startAt}
-              onChange={(e) =>
-                setDealModal((s) => ({
-                  ...s,
-                  startAt: e.target.value,
-                  endAt:
-                    s.endAt && s.endAt < e.target.value
-                      ? ""
-                      : s.endAt,
-                }))
-              }
-            />
-          </div>
+                                      value={dealModal.startAt}
+                                      onChange={(e) =>
+                                        setDealModal((s) => ({
+                                          ...s,
+                                          startAt: e.target.value,
+                                          endAt:
+                                            s.endAt && s.endAt < e.target.value
+                                              ? ""
+                                              : s.endAt,
+                                        }))
+                                      }
+                                    />
+                                  </div>
 
-          <div>
-            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-              End Date
-            </label>
-            <input
-              type="date"
-              min={dealModal.startAt || today}
-              className="
+                                  <div>
+                                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                      End Date
+                                    </label>
+                                    <input
+                                      type="date"
+                                      min={dealModal.startAt || today}
+                                      className="
                 w-full mt-1 px-3 py-2 rounded-lg border
                 bg-white dark:bg-gray-800
                 text-gray-900 dark:text-gray-100
                 border-gray-300 dark:border-gray-700
                 focus:outline-none focus:ring-2 focus:ring-orange-500
               "
-              value={dealModal.endAt}
-              onChange={(e) =>
-                setDealModal((s) => ({
-                  ...s,
-                  endAt: e.target.value,
-                }))
-              }
-            />
-          </div>
-        </div>
-      </div>
+                                      value={dealModal.endAt}
+                                      onChange={(e) =>
+                                        setDealModal((s) => ({
+                                          ...s,
+                                          endAt: e.target.value,
+                                        }))
+                                      }
+                                    />
+                                  </div>
+                                </div>
+                              </div>
 
-      {/* ACTIONS */}
-      <div className="flex justify-end gap-3 mt-6">
-        <Button variant="outline" onClick={closeDealModal}>
-          Cancel
-        </Button>
-        <Button onClick={submitDeal}>Save Deal</Button>
-      </div>
-    </div>
-  </div>
-)}
-
+                              {/* ACTIONS */}
+                              <div className="flex justify-end gap-3 mt-6">
+                                <Button
+                                  variant="outline"
+                                  onClick={closeDealModal}
+                                >
+                                  Cancel
+                                </Button>
+                                <Button onClick={submitDeal}>Save Deal</Button>
+                              </div>
+                            </div>
+                          </div>
+                        )}
 
                         {/* ACTIONS */}
                         <TableCell className="text-right">

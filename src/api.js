@@ -1,13 +1,11 @@
-// src/api.js
 import axios from "axios";
 
 const getBaseURL = () => {
-  // Vite environment (recommended for Vite)
+ 
   if (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_API_BASE_URL) {
     return import.meta.env.VITE_API_BASE_URL;
   }
 
-  // CRA / Node-style env: access process via globalThis to avoid ESLint `no-undef`
   if (
     typeof globalThis !== "undefined" &&
     globalThis.process &&
@@ -17,7 +15,6 @@ const getBaseURL = () => {
     return globalThis.process.env.REACT_APP_API_BASE_URL;
   }
 
-  // fallback
   return "https://swadbackendserver.onrender.com";
 };
 
@@ -36,7 +33,7 @@ api.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
     try {
-      // method can be undefined, so guard with optional chaining
+      
       const method = config.method ? config.method.toUpperCase() : "UNKNOWN";
       const url = config.baseURL ? `${config.baseURL}${config.url}` : config.url;
       console.debug("[api] req ->", method, url, config.headers);

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import api from "../api";
 
-import { Plus, Trash2, Image as ImageIcon } from "lucide-react";
+import { Plus, Trash2, Image as ImageIcon, Upload } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/select";
 
 export default function AddProducts() {
+
   const [form, setForm] = useState({
     name: "",
     description: "",
@@ -103,10 +104,6 @@ export default function AddProducts() {
       return setError("Product description is required");
     if (!imageFile) return setError("Product image is required");
 
-    if (!Array.isArray(form.variants) || form.variants.length === 0) {
-      return setError("At least one variant is required");
-    }
-
     for (const v of form.variants) {
       if (!v.weight || Number(v.price) <= 0 || Number(v.stock) < 0) {
         return setError("Enter valid variant data");
@@ -114,6 +111,7 @@ export default function AddProducts() {
     }
 
     const fd = new FormData();
+
     fd.append("name", form.name);
     fd.append("description", form.description);
     fd.append("category", form.category);
@@ -144,36 +142,53 @@ export default function AddProducts() {
   };
 
   return (
-    <div className="p-4 lg:p-8 space-y-6 max-w-5xl mx-auto">
-      <div>
-        <h1 className="text-3xl font-bold">Add Product</h1>
-        <p className="text-muted-foreground mt-1">
+    <div className="w-full max-w-7xl mx-auto p-4 md:p-6 lg:p-8 space-y-6">
+
+      {/* HEADER */}
+      <div className="flex flex-col gap-1">
+        <h1 className="text-2xl md:text-3xl font-bold">Add Product</h1>
+        <p className="text-muted-foreground text-sm md:text-base">
           Create and publish a new product
         </p>
       </div>
 
+      {/* ALERTS */}
       {error && (
-        <div className="bg-red-50 text-red-700 border border-red-200 p-3 rounded-lg">
+        <div className="bg-red-50 border border-red-200 text-red-700 p-3 rounded-lg">
           {error}
         </div>
       )}
 
       {success && (
-        <div className="bg-green-50 text-green-700 border border-green-200 p-3 rounded-lg">
+        <div className="bg-green-50 border border-green-200 text-green-700 p-3 rounded-lg">
           {success}
         </div>
       )}
 
-      <form onSubmit={submit} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <form
+        onSubmit={submit}
+        className="grid grid-cols-1 lg:grid-cols-3 gap-6"
+      >
+
+        {/* LEFT SECTION */}
         <div className="lg:col-span-2 space-y-6">
+
+          {/* BASIC INFO */}
           <Card>
             <CardHeader>
               <CardTitle>Basic Information</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+
+            <CardContent className="space-y-5">
+
               <div className="space-y-2">
                 <Label>Product Name</Label>
-                <Input name="name" value={form.name} onChange={handleChange} />
+                <Input
+                  name="name"
+                  value={form.name}
+                  onChange={handleChange}
+                  placeholder="Example: Achari Masala"
+                />
               </div>
 
               <div className="space-y-2">
@@ -183,6 +198,7 @@ export default function AddProducts() {
                   name="description"
                   value={form.description}
                   onChange={handleChange}
+                  placeholder="Describe your product..."
                 />
               </div>
 
@@ -197,6 +213,7 @@ export default function AddProducts() {
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
+
                   <SelectContent>
                     <SelectItem value="Snacks">Snacks</SelectItem>
                     <SelectItem value="Meal">Meal</SelectItem>
@@ -207,23 +224,34 @@ export default function AddProducts() {
                   </SelectContent>
                 </Select>
               </div>
+
             </CardContent>
           </Card>
 
+
+          {/* VARIANTS */}
           <Card>
             <CardHeader>
-              <CardTitle>Variants</CardTitle>
+              <CardTitle>Product Variants</CardTitle>
             </CardHeader>
+
             <CardContent className="space-y-4">
+
               {form.variants.map((v, i) => (
-                <div key={i} className="grid grid-cols-4 gap-3">
+
+                <div
+                  key={i}
+                  className="grid grid-cols-1 md:grid-cols-4 gap-3 items-center"
+                >
+
                   <Input
-                    placeholder="Weight"
+                    placeholder="Weight (250g)"
                     value={v.weight}
                     onChange={(e) =>
                       updateVariant(i, "weight", e.target.value)
                     }
                   />
+
                   <Input
                     type="number"
                     placeholder="Price"
@@ -232,6 +260,7 @@ export default function AddProducts() {
                       updateVariant(i, "price", e.target.value)
                     }
                   />
+
                   <Input
                     type="number"
                     placeholder="Stock"
@@ -240,6 +269,7 @@ export default function AddProducts() {
                       updateVariant(i, "stock", e.target.value)
                     }
                   />
+
                   <Button
                     type="button"
                     variant="destructive"
@@ -247,28 +277,56 @@ export default function AddProducts() {
                   >
                     <Trash2 size={16} />
                   </Button>
+
                 </div>
               ))}
 
-              <Button type="button" variant="outline" onClick={addVariant}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={addVariant}
+                className="w-full md:w-auto"
+              >
                 <Plus className="w-4 h-4 mr-2" />
                 Add Variant
               </Button>
+
             </CardContent>
           </Card>
+
         </div>
 
+
+        {/* RIGHT SIDE */}
         <div className="space-y-6">
+
           <Card>
             <CardHeader>
               <CardTitle>Product Image</CardTitle>
             </CardHeader>
+
             <CardContent>
+
               <div
                 onClick={() => uploadRef.current?.click()}
-                className="cursor-pointer border-2 border-dashed rounded-xl p-4 text-center"
+                className="cursor-pointer border-2 border-dashed border-muted rounded-xl p-6 flex flex-col items-center justify-center gap-3 hover:bg-muted/40 transition"
               >
-                {!preview ? <ImageIcon /> : <img src={preview} alt="Preview" />}
+
+                {!preview ? (
+                  <>
+                    <Upload size={28} className="text-muted-foreground" />
+                    <p className="text-sm text-muted-foreground">
+                      Click to upload product image
+                    </p>
+                  </>
+                ) : (
+                  <img
+                    src={preview}
+                    alt="Preview"
+                    className="w-full rounded-lg object-cover"
+                  />
+                )}
+
               </div>
 
               <input
@@ -277,13 +335,20 @@ export default function AddProducts() {
                 hidden
                 onChange={handleFile}
               />
+
             </CardContent>
           </Card>
 
-          <Button disabled={loading} className="w-full">
+          <Button
+            disabled={loading}
+            className="w-full text-base"
+            size="lg"
+          >
             {loading ? "Saving..." : "Add Product"}
           </Button>
+
         </div>
+
       </form>
     </div>
   );
